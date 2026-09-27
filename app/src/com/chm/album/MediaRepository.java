@@ -6,10 +6,13 @@ import android.content.Context;
 import android.database.Cursor;
 import android.net.Uri;
 import android.os.Build;
+import android.os.Bundle;
+import android.os.CancellationSignal;
 import android.os.Handler;
 import android.os.Looper;
 import android.provider.MediaStore;
 
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -74,13 +77,36 @@ public final class MediaRepository {
 
     private static List<MediaItem> query(ContentResolver cr) {
         List<MediaItem> out = new ArrayList<>();
-        queryTable(cr, MediaStore.Images.Media.EXTERNAL_CONTENT_URI, false, out);
-        queryTable(cr, MediaStore.Video.Media.EXTERNAL_CONTENT_URI, true, out);
+        queryTable(cr, MediaStore.Images.Media.EXTERNAL_CONTENT_URI, false, out, false);
+        queryTable(cr, MediaStore.Video.Media.EXTERNAL_CONTENT_URI, true, out, false);
         return out;
     }
 
+    /** Android 11+ 시스템 휴지통에 있는 사진/동영상 (완전 삭제까지 남은 순서로 정렬 전). */
+    public static List<MediaItem> queryTrashed(ContentResolver cr) {
+        List<MediaItem> out = new ArrayList<>();
+        if (Build.VERSION.SDK_INT < 30) return out;
+        queryTable(cr, MediaStore.Images.Media.EXTERNAL_CONTENT_URI, false, out, true);
+        queryTable(cr, MediaStore.Video.Media.EXTERNAL_CONTENT_URI, true, out, true);
+        return out;
+    }
+
+    /** MediaStore.QUERY_ARG_MATCH_TRASHED / MATCH_ONLY / DATE_EXPIRES (API 30) */
+    private static final String ARG_MATCH_TRASHED = "android:query-arg-match-trashed";
+    private static final int MATCH_ONLY = 3;
+    private static final String COL_DATE_EXPIRES = "date_expires";
+
+    private static Cursor queryTrashedCursor(ContentResolver cr, Uri base, String[] cols) throws Exception {
+        Bundle args = new Bundle();
+        args.putInt(ARG_MATCH_TRASHED, MATCH_ONLY);
+        Method q = ContentResolver.class.getMethod("query",
+                Uri.class, String[].class, Bundle.class, CancellationSignal.class);
+        return (Cursor) q.invoke(cr, base, cols, args, null);
+    }
+
     /** 사진/동영상 테이블 하나를 읽는다. 권한이 없는 테이블은 건너뛴다. */
-    private static void queryTable(ContentResolver cr, Uri base, boolean video, List<MediaItem> out) {
+    private static void queryTable(ContentResolver cr, Uri base, boolean video, List<MediaItem> out,
+                                   boolean trashed) {
         List<String> cols = new ArrayList<>(Arrays.asList(
                 MediaStore.MediaColumns._ID,
                 MediaStore.MediaColumns.DISPLAY_NAME,
@@ -96,10 +122,12 @@ public final class MediaRepository {
                 MediaStore.MediaColumns.DATA));
         cols.add(video ? MediaStore.Video.VideoColumns.DURATION : MediaStore.Images.ImageColumns.ORIENTATION);
         if (Build.VERSION.SDK_INT >= 29) cols.add(COL_RELATIVE_PATH);
+        if (trashed) cols.add(COL_DATE_EXPIRES);
 
         Cursor c = null;
         try {
-            c = cr.query(base, cols.toArray(new String[0]), null, null, null);
+            String[] projection = cols.toArray(new String[0]);
+            c = trashed ? queryTrashedCursor(cr, base, projection) : cr.query(base, projection, null, null, null);
             if (c == null) return;
             int iId = c.getColumnIndex(MediaStore.MediaColumns._ID);
             int iName = c.getColumnIndex(MediaStore.MediaColumns.DISPLAY_NAME);
@@ -116,11 +144,12 @@ public final class MediaRepository {
             int iDur = video ? c.getColumnIndex(MediaStore.Video.VideoColumns.DURATION) : -1;
             int iOri = video ? -1 : c.getColumnIndex(MediaStore.Images.ImageColumns.ORIENTATION);
             int iRel = c.getColumnIndex(COL_RELATIVE_PATH);
+            int iExp = c.getColumnIndex(COL_DATE_EXPIRES);
             while (c.moveToNext()) {
                 long id = c.getLong(iId);
                 String bucketName = str(c, iBucketName);
                 String bucketId = str(c, iBucket);
-                out.add(new MediaItem(
+                MediaItem item = new MediaItem(
                         id,
                         ContentUris.withAppendedId(base, id),
                         video,
@@ -137,7 +166,9 @@ public final class MediaRepository {
                         lng(c, iSize),
                         lng(c, iDur),
                         str(c, iRel),
-                        str(c, iData)));
+                        str(c, iData));
+                item.expiresMs = lng(c, iExp) * 1000L;
+                out.add(item);
             }
         } catch (Exception e) {
             // 권한이 없거나 저장소를 읽을 수 없는 경우 건너뜀

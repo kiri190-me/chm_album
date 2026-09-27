@@ -35,6 +35,7 @@ public final class ThumbnailLoader {
         return sInstance;
     }
 
+    private final Context app;
     private final ContentResolver cr;
     private final LruCache<String, Bitmap> cache;
     private final Map<ImageView, String> targets =
@@ -43,6 +44,7 @@ public final class ThumbnailLoader {
     private final ThreadPoolExecutor pool;
 
     private ThumbnailLoader(Context ctx) {
+        app = ctx;
         cr = ctx.getContentResolver();
         int maxKb = (int) (Runtime.getRuntime().maxMemory() / 1024 / 6);
         cache = new LruCache<String, Bitmap>(maxKb) {
@@ -95,6 +97,12 @@ public final class ThumbnailLoader {
     }
 
     private Bitmap decodeThumbnail(MediaItem item, int sizePx) {
+        if ("file".equals(item.uri.getScheme())) {
+            // 앱 휴지통(Android 10 이하)에 옮겨 둔 파일
+            return item.isVideo
+                    ? videoFrame(app, item.uri, 0, sizePx * 2)
+                    : decodeSampled(cr, item.uri, item.orientation, sizePx);
+        }
         if (Build.VERSION.SDK_INT >= 29) {
             // Android 10+ : 시스템 썸네일 캐시 사용 (회전 보정 포함)
             try {

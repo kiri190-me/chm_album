@@ -21,6 +21,9 @@ public class MediaCellView extends SquareImageView {
     private final float density;
 
     private String duration;
+    private String badge;
+    private final Paint badgePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint badgeText = new Paint(Paint.ANTI_ALIAS_FLAG);
     private boolean selectionMode;
     private boolean checked;
     private int shadeHeight = -1;
@@ -34,6 +37,17 @@ public class MediaCellView extends SquareImageView {
         textPaint.setTextAlign(Paint.Align.RIGHT);
         textPaint.setShadowLayer(2 * density, 0, 0, 0x66000000);
         dimPaint.setColor(0x33000000);
+        badgePaint.setColor(0x99000000);
+        badgeText.setColor(0xFFFFFFFF);
+        badgeText.setTextSize(11f * density);
+        badgeText.setTypeface(Typeface.create("sans-serif-medium", Typeface.BOLD));
+        badgeText.setTextAlign(Paint.Align.CENTER);
+    }
+
+    /** 오른쪽 위 작은 표시 (예: 휴지통의 "29일"). null 이면 없음. */
+    public void setBadge(String text) {
+        badge = text;
+        invalidate();
     }
 
     /** 동영상이면 길이(ms), 사진이면 0. */
@@ -80,6 +94,17 @@ public class MediaCellView extends SquareImageView {
             circlePaint.setStyle(Paint.Style.FILL);
             circlePaint.setColor(0xFFFFFFFF);
             canvas.drawPath(tick, circlePaint);
+        }
+
+        if (badge != null) {
+            float tw = badgeText.measureText(badge);
+            float ph = 5 * density;
+            float bh = 18 * density;
+            float right = w - 5 * density;
+            float top = 5 * density;
+            android.graphics.RectF r = new android.graphics.RectF(right - tw - 2 * ph, top, right, top + bh);
+            canvas.drawRoundRect(r, bh / 2, bh / 2, badgePaint);
+            canvas.drawText(badge, r.centerX(), r.centerY() + badgeText.getTextSize() * 0.36f, badgeText);
         }
 
         if (selectionMode) {

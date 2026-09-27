@@ -14,7 +14,7 @@ import android.widget.TextView;
 import java.util.List;
 
 /** 폴더 하나의 사진/동영상 목록. */
-public class AlbumActivity extends Activity {
+public class AlbumActivity extends Activity implements TrashController.Callback {
 
     private static final String EXTRA_ID = "bucket_id";
     private static final String EXTRA_NAME = "bucket_name";
@@ -27,6 +27,7 @@ public class AlbumActivity extends Activity {
     }
 
     private SortPrefs prefs;
+    private TrashController trash;
     private String bucketId;
     private String albumName;
     private TextView title;
@@ -42,6 +43,7 @@ public class AlbumActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         prefs = new SortPrefs(this);
+        trash = new TrashController(this, this);
         bucketId = getIntent().getStringExtra(EXTRA_ID);
         albumName = getIntent().getStringExtra(EXTRA_NAME);
         Ui.lightNavigationBar(this);
@@ -133,11 +135,16 @@ public class AlbumActivity extends Activity {
         root.addView(list, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
 
         selectionBar = Ui.actionBar(this, Ui.TEXT, Ui.BG,
-                new int[]{R.drawable.ic_share}, new String[]{"공유"},
+                new int[]{R.drawable.ic_share, R.drawable.ic_delete}, new String[]{"공유", "삭제"},
                 new View.OnClickListener[]{new View.OnClickListener() {
                     @Override
                     public void onClick(View v) {
                         ShareHelper.share(AlbumActivity.this, adapter.getSelectedItems());
+                    }
+                }, new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        trash.moveToTrash(adapter.getSelectedItems());
                     }
                 }});
         selectionBar.setVisibility(View.GONE);
@@ -161,9 +168,29 @@ public class AlbumActivity extends Activity {
     }
 
     @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        if (!trash.onActivityResult(requestCode, resultCode)) super.onActivityResult(requestCode, resultCode, data);
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        trash.onRequestPermissionsResult(requestCode, grantResults);
+    }
+
+    @Override
+    public void onTrashDone(int op, List<MediaItem> affected) {
+        if (adapter.isSelectionMode()) adapter.endSelection();
+        reloadItems();
+    }
+
+    @Override
     protected void onRestart() {
         super.onRestart();
-        // 편집한 사본이 저장되었을 수 있으므로 다시 읽는다
+        // 편집한 사본이 저장되었거나 항목이 지워졌을 수 있으므로 다시 읽는다
+        reloadItems();
+    }
+
+    private void reloadItems() {
         MediaRepository.loadAsync(this, new MediaRepository.Callback() {
             @Override
             public void onLoaded(List<MediaItem> all) {

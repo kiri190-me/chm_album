@@ -27,7 +27,7 @@ import android.widget.TextView;
 import java.util.ArrayList;
 import java.util.List;
 
-public class MainActivity extends Activity {
+public class MainActivity extends Activity implements TrashController.Callback {
 
     private static final int REQ_PERMISSION = 7;
     private static final int TAB_PHOTOS = 0;
@@ -40,6 +40,8 @@ public class MainActivity extends Activity {
     private TextView title;
     private TextView subtitle;
     private ImageView sortButton;
+    private ImageView moreButton;
+    private TrashController trash;
     private TextView selectAllButton;
     private ImageView closeSelectionButton;
     private PinchListView photosList;
@@ -85,6 +87,7 @@ public class MainActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         prefs = new SortPrefs(this);
+        trash = new TrashController(this, this);
         if (savedInstanceState != null) currentTab = savedInstanceState.getInt(STATE_TAB, TAB_PHOTOS);
         Ui.lightNavigationBar(this);
         setContentView(buildLayout());
@@ -178,6 +181,21 @@ public class MainActivity extends Activity {
             }
         });
         header.addView(sortButton, new LinearLayout.LayoutParams(Ui.dp(this, 44), Ui.dp(this, 44)));
+
+        moreButton = Ui.iconButton(this, R.drawable.ic_more, Ui.TEXT);
+        moreButton.setContentDescription("더보기");
+        moreButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Ui.showMenu(v, new String[]{"휴지통"}, new Runnable[]{new Runnable() {
+                    @Override
+                    public void run() {
+                        TrashActivity.open(MainActivity.this);
+                    }
+                }});
+            }
+        });
+        header.addView(moreButton, new LinearLayout.LayoutParams(Ui.dp(this, 44), Ui.dp(this, 44)));
 
         selectAllButton = Ui.pillButton(this, "전체 선택");
         selectAllButton.setOnClickListener(new View.OnClickListener() {
@@ -283,12 +301,18 @@ public class MainActivity extends Activity {
 
         // 선택 모드의 하단 동작 막대
         selectionBar = Ui.actionBar(this, Ui.TEXT, Ui.BG,
-                new int[]{R.drawable.ic_share}, new String[]{"공유"},
+                new int[]{R.drawable.ic_share, R.drawable.ic_delete}, new String[]{"공유", "삭제"},
                 new View.OnClickListener[]{new View.OnClickListener() {
                     @Override
                     public void onClick(View v) {
                         PhotoGridAdapter a = currentGridAdapter();
                         if (a != null) ShareHelper.share(MainActivity.this, a.getSelectedItems());
+                    }
+                }, new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        PhotoGridAdapter a = currentGridAdapter();
+                        if (a != null) trash.moveToTrash(a.getSelectedItems());
                     }
                 }});
         selectionBar.setVisibility(View.GONE);
@@ -406,6 +430,7 @@ public class MainActivity extends Activity {
         PhotoGridAdapter a = currentGridAdapter();
         boolean selecting = a != null && a.isSelectionMode();
         sortButton.setVisibility(selecting ? View.GONE : View.VISIBLE);
+        moreButton.setVisibility(selecting ? View.GONE : View.VISIBLE);
         selectAllButton.setVisibility(selecting ? View.VISIBLE : View.GONE);
         closeSelectionButton.setVisibility(selecting ? View.VISIBLE : View.GONE);
         tabBar.setVisibility(selecting ? View.GONE : View.VISIBLE);
@@ -414,7 +439,7 @@ public class MainActivity extends Activity {
         if (selecting) {
             int n = a.getSelectedItems().size();
             title.setText(n == 0 ? "항목 선택" : n + "개 선택됨");
-            subtitle.setText("공유할 항목을 눌러 선택하세요");
+            subtitle.setText("공유하거나 삭제할 항목을 눌러 선택하세요");
             selectAllButton.setText(a.allSelected() ? "선택 해제" : "전체 선택");
             return;
         }
@@ -465,6 +490,7 @@ public class MainActivity extends Activity {
 
     @Override
     public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        if (trash.onRequestPermissionsResult(requestCode, grantResults)) return;
         if (requestCode != REQ_PERMISSION) return;
         if (hasPermission()) {
             onPermissionReady();
@@ -498,6 +524,18 @@ public class MainActivity extends Activity {
         getContentResolver().unregisterContentObserver(observer);
         getContentResolver().registerContentObserver(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, true, observer);
         getContentResolver().registerContentObserver(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, true, observer);
+        reload();
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        if (!trash.onActivityResult(requestCode, resultCode)) super.onActivityResult(requestCode, resultCode, data);
+    }
+
+    @Override
+    public void onTrashDone(int op, List<MediaItem> affected) {
+        PhotoGridAdapter a = currentGridAdapter();
+        if (a != null && a.isSelectionMode()) a.endSelection();
         reload();
     }
 

@@ -33,7 +33,7 @@ import java.util.concurrent.Executors;
  * 사진은 두 손가락으로 벌리거나 두 번 탭해 확대하고, 확대한 채로 끌어 이동한다.
  * 동영상은 가운데 재생 버튼으로 재생한다.
  */
-public class ViewerActivity extends Activity {
+public class ViewerActivity extends Activity implements TrashController.Callback {
 
     private static final String STATE_INDEX = "index";
     private static final int MAX_ZOOM_SIDE = 4096;
@@ -70,6 +70,7 @@ public class ViewerActivity extends Activity {
     private TextView position;
     private TextView info;
     private SortPrefs prefs;
+    private TrashController trash;
 
     private final Runnable progressTick = new Runnable() {
         @Override
@@ -93,6 +94,7 @@ public class ViewerActivity extends Activity {
             return;
         }
         prefs = new SortPrefs(this);
+        trash = new TrashController(this, this);
         index = savedInstanceState != null ? savedInstanceState.getInt(STATE_INDEX, sStart) : sStart;
         index = Math.max(0, Math.min(items.size() - 1, index));
         setContentView(buildLayout());
@@ -301,6 +303,13 @@ public class ViewerActivity extends Activity {
                 ShareHelper.share(ViewerActivity.this, Collections.singletonList(items.get(index)));
             }
         }), new LinearLayout.LayoutParams(Ui.dp(this, 44), Ui.dp(this, 44)));
+        actions.addView(action(R.drawable.ic_delete, "삭제", new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                stopVideo();
+                trash.moveToTrash(Collections.singletonList(items.get(index)));
+            }
+        }), new LinearLayout.LayoutParams(Ui.dp(this, 44), Ui.dp(this, 44)));
         actions.addView(action(R.drawable.ic_info, "상세 정보", new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -349,6 +358,34 @@ public class ViewerActivity extends Activity {
         };
         video.setOnTouchListener(touch);
         return root;
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        if (!trash.onActivityResult(requestCode, resultCode)) super.onActivityResult(requestCode, resultCode, data);
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        trash.onRequestPermissionsResult(requestCode, grantResults);
+    }
+
+    /** 휴지통으로 옮긴 사진은 목록에서 빼고 다음 사진을 보여준다. */
+    @Override
+    public void onTrashDone(int op, List<MediaItem> affected) {
+        if (affected.isEmpty()) return;
+        java.util.Set<Long> gone = new java.util.HashSet<>();
+        for (MediaItem m : affected) gone.add(m.key());
+        List<MediaItem> left = new ArrayList<>();
+        for (MediaItem m : items) {
+            if (!gone.contains(m.key())) left.add(m);
+        }
+        items = left;
+        if (items.isEmpty()) {
+            finish();
+            return;
+        }
+        show(Math.min(index, items.size() - 1));
     }
 
     private ImageView action(int icon, String label, View.OnClickListener l) {

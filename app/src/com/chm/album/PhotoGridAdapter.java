@@ -29,6 +29,11 @@ public class PhotoGridAdapter extends BaseAdapter {
         void onSelectionChanged(boolean selectionMode, int count);
     }
 
+    /** 칸 오른쪽 위에 붙일 짧은 표시 */
+    public interface Badger {
+        String badge(MediaItem m);
+    }
+
     private static final int TYPE_HEADER = 0;
     private static final int TYPE_ROW = 1;
 
@@ -52,6 +57,7 @@ public class PhotoGridAdapter extends BaseAdapter {
     private final Listener listener;
     private final Set<Long> selected = new HashSet<>();
     private boolean selectionMode;
+    private Badger badger;
     private final int gap;
     private List<MediaItem> items = new ArrayList<>();
     private final List<Row> rows = new ArrayList<>();
@@ -79,6 +85,21 @@ public class PhotoGridAdapter extends BaseAdapter {
             listener.onSelectionChanged(selectionMode, selected.size());
         }
         rebuild();
+    }
+
+    public void setBadger(Badger b) {
+        badger = b;
+        notifyDataSetChanged();
+    }
+
+    /** 선택 모드로 들어가며 이 항목을 선택/해제한다. */
+    public void toggleItem(MediaItem m) {
+        selectionMode = true;
+        toggle(m);
+    }
+
+    public int getItemTotal() {
+        return items.size();
     }
 
     public boolean isSelectionMode() {
@@ -223,6 +244,7 @@ public class PhotoGridAdapter extends BaseAdapter {
                 final MediaItem m = items.get(index);
                 iv.setVisibility(View.VISIBLE);
                 iv.setDuration(m.durationMs, m.isVideo);
+                iv.setBadge(badger == null ? null : badger.badge(m));
                 iv.setSelection(selectionMode, selected.contains(m.key()));
                 iv.setContentDescription((m.isVideo ? "동영상 " : "사진 ") + m.name);
                 loader.load(m, iv, cellPx);

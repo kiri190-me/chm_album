@@ -30,6 +30,8 @@
   - 최신순 / 오래된순
 - 핀치로 한 줄에 보이는 사진 수(2~7장) 조절
 - 뷰어: 두 손가락/두 번 탭으로 확대·축소, 확대한 채로 끌어 이동, 좌우로 밀어 이전/다음, 아래로 밀어 닫기, ⓘ 버튼으로 두 날짜와 파일 정보 확인, 동영상 재생
+- **휴지통**: 삭제한 항목은 30일 동안 보관 후 자동 삭제. 오른쪽 위 ⋮ → 휴지통에서 복원/완전 삭제/비우기
+  (Android 11 이상은 시스템 휴지통, Android 10 이하는 앱 안의 휴지통 폴더 사용)
 - **공유**: 뷰어의 공유 버튼, 또는 격자에서 길게 눌러 여러 개 선택한 뒤 공유
 - **사진 편집**: 자르기(자유/원본/1:1/4:3/3:4/16:9/9:16), 기울기(-45°~45°), 90° 회전, 좌우 반전, 저장 크기(100/75/50/25%, 긴 변 2048/1280px)
 - **동영상 자르기**: 시작/끝 손잡이로 구간을 골라 다시 인코딩 없이 잘라 저장 (키프레임 단위라 시작점이 조금 앞당겨질 수 있음)
@@ -64,6 +66,7 @@ sudo apt-get install android-sdk-platform-23 android-sdk-build-tools apksigner z
 | `app/src/com/chm/album/PhotoEditorActivity.java`, `CropView.java` | 사진 편집 |
 | `app/src/com/chm/album/VideoTrimActivity.java`, `RangeTrimView.java`, `VideoTrimmer.java` | 동영상 자르기 |
 | `app/src/com/chm/album/ShareHelper.java` | 공유 |
+| `app/src/com/chm/album/TrashActivity.java`, `TrashController.java`, `LegacyTrash.java` | 휴지통 |
 | `app/src/com/chm/album/MediaSaver.java` | 편집한 사본 저장 |
 | `app/src/com/chm/album/MediaRepository.java` | MediaStore 조회, 정렬, 폴더 묶기 |
 | `app/src/com/chm/album/ThumbnailLoader.java` | 썸네일 비동기 로딩/캐시 |

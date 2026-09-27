@@ -162,6 +162,11 @@
   .app i { width: 48px; height: 48px; border-radius: 16px; display: grid; place-items: center; font-style: normal; font-weight: 700; font-size: 18px; color: #fff; }
   .sheet .note { font-size: 12px; color: var(--sub); margin: 8px 0 0; }
 
+  .cell .badge { position: absolute; top: 5px; right: 5px; background: #0009; color: #fff; font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 9px; font-variant-numeric: tabular-nums; }
+  .pill.danger { color: #e0243c; }
+  .menu { position: absolute; top: 118px; right: 12px; min-width: 180px; background: #fff; border-radius: 18px; box-shadow: 0 8px 28px #0003; padding: 6px 0; z-index: 6; }
+  .menu button { display: block; width: 100%; height: 48px; border: 0; background: none; text-align: left; padding: 0 24px 0 20px; font: inherit; font-size: 16px; color: var(--ink); cursor: pointer; }
+  .menu button:hover { background: #0000000d; }
   .toast { position: absolute; left: 50%; bottom: 84px; transform: translateX(-50%); background: #333e; color: #fff; font-size: 12.5px; padding: 8px 14px; border-radius: 16px; white-space: nowrap; pointer-events: none; z-index: 9; }
 
   @media (max-width: 520px) {
@@ -186,7 +191,7 @@
       <img id="appicon" alt="앱 아이콘">
       <div>
         <h1>갤러리</h1>
-        <p>com.chm.album · v1.2 · Android 6.0 이상</p>
+        <p>com.chm.album · v1.3 · Android 6.0 이상</p>
       </div>
     </div>
     <a class="dl" href="https://github.com/kiri190-me/chm_album/releases/latest/download/chm-gallery.apk" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 20h14v-2H5v2zM19 9h-4V3H9v6H5l7 7 7-7z"/></svg>APK 다운로드</a>
@@ -199,6 +204,7 @@
         <li>항목을 <b>길게 눌러</b> 여러 개 선택 → 공유</li>
         <li>사진 보기에서 <b>두 번 클릭</b>·휠·핀치로 확대, 끌어서 이동</li>
         <li>사진 보기에서 <b>편집</b>: 자르기, 기울기, 90° 회전, 반전, 크기</li>
+        <li>삭제하면 <b>휴지통</b>으로 (오른쪽 위 ⋮ → 휴지통에서 복원·완전 삭제)</li>
         <li>동영상 보기에서 <b>편집</b>: 노란 손잡이로 구간 자르기</li>
         <li>Ctrl + 휠 또는 핀치로 열 개수 변경</li>
       </ul>
@@ -444,6 +450,9 @@
     rotate: "M7.11 8.53 5.7 7.11C4.8 8.27 4.24 9.61 4.07 11h2.02c.14-.87.49-1.72 1.02-2.47zM6.09 13H4.07c.17 1.39.72 2.73 1.62 3.89l1.41-1.42c-.52-.75-.87-1.59-1.01-2.47zm1.01 5.32c1.16.9 2.51 1.44 3.9 1.61V17.9c-.87-.15-1.71-.49-2.46-1.03L7.1 18.32zM13 4.07V1L8.45 5.55 13 10V6.09c2.84.48 5 2.94 5 5.91s-2.16 5.43-5 5.91v2.02c3.95-.49 7-3.85 7-7.93s-3.05-7.44-7-7.93z",
     flip: "M15 21h2v-2h-2v2zm4-12h2V7h-2v2zM3 5v14c0 1.1.9 2 2 2h4v-2H5V5h4V3H5c-1.1 0-2 .9-2 2zm16-2v2h2c0-1.1-.9-2-2-2zm-8 20h2V1h-2v22zm8-6h2v-2h-2v2zM15 5h2V3h-2v2zm4 8h2v-2h-2v2zm0 8c1.1 0 2-.9 2-2h-2v2z",
     resize: "M19 12h-2v3h-3v2h5v-5zM7 9h3V7H5v5h2V9zm14-6H3c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16.01H3V4.99h18v14.02z",
+    trash: "M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM8 9h8v10H8V9zm7.5-5-1-1h-5l-1 1H5v2h14V4z",
+    restore: "M13 3a9 9 0 0 0-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42A8.954 8.954 0 0 0 13 21a9 9 0 0 0 0-18zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z",
+    more: "M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z",
     reset: "M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"
   };
   function svg(name) { return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="' + ICON[name] + '"/></svg>'; }
@@ -509,7 +518,8 @@
   var sortBtn = iconBtn("sort", "정렬"); sortBtn.id = "sort-main";
   var selAllBtn = el("button", "pill", "전체 선택"); selAllBtn.type = "button"; selAllBtn.hidden = true;
   var selCloseBtn = iconBtn("close", "선택 취소"); selCloseBtn.hidden = true;
-  header.append(titles, selAllBtn, selCloseBtn, sortBtn);
+  var moreBtn = iconBtn("more", "더보기"); moreBtn.id = "more-main";
+  header.append(titles, selAllBtn, selCloseBtn, sortBtn, moreBtn);
   var body = el("div", "scroll"); body.id = "main-scroll";
   var tabs = el("div", "tabs"); tabs.setAttribute("role", "tablist");
   Object.keys(TABS).forEach(function (k) {
@@ -518,7 +528,8 @@
     tabs.append(t);
   });
   var mainSel = new Selection(function () { renderMain(); });
-  var mainShare = actionBar([["share", "공유", function () { openShare(mainSel.items(currentList())); }]]);
+  var mainShare = actionBar([["share", "공유", function () { openShare(mainSel.items(currentList())); }],
+    ["trash", "삭제", function () { confirmTrash(mainSel.items(currentList()), function () { mainSel.end(); }); }]]);
   main.append(header, body, tabs, mainShare);
   screen.append(main);
 
@@ -536,11 +547,11 @@
     var selecting = mainSel.on && state.tab !== "albums";
     tabs.querySelectorAll(".tab").forEach(function (t) { t.setAttribute("aria-selected", t.id === "tab-" + state.tab); });
     tabs.hidden = selecting; mainShare.hidden = !selecting;
-    sortBtn.hidden = selecting; selAllBtn.hidden = !selecting; selCloseBtn.hidden = !selecting;
+    sortBtn.hidden = selecting; moreBtn.hidden = selecting; selAllBtn.hidden = !selecting; selCloseBtn.hidden = !selecting;
     if (selecting) {
       var n = mainSel.ids.size, cur = currentList();
       h3.textContent = n ? n + "개 선택됨" : "항목 선택";
-      subtitle.textContent = "공유할 항목을 눌러 선택하세요";
+      subtitle.textContent = "공유하거나 삭제할 항목을 눌러 선택하세요";
       selAllBtn.textContent = n && n === cur.length ? "선택 해제" : "전체 선택";
     } else {
       h3.textContent = TABS[state.tab];
@@ -568,6 +579,13 @@
     }
   }
   sortBtn.onclick = function () { openSort(); };
+  moreBtn.onclick = function () {
+    var menu = el("div", "menu"), scrim = el("div", "scrim"); scrim.style.background = "transparent";
+    var b = el("button", null, "휴지통"); b.type = "button"; b.id = "menu-trash";
+    b.onclick = function () { scrim.remove(); openTrash(); };
+    menu.append(b); scrim.append(menu); scrim.onclick = function (e) { if (e.target === scrim) scrim.remove(); };
+    screen.append(scrim); b.focus();
+  };
   selAllBtn.onclick = function () { mainSel.all(currentList()); };
   selCloseBtn.onclick = function () { mainSel.end(); };
 
@@ -583,7 +601,8 @@
     var sb = iconBtn("sort", "정렬");
     head.append(back, t, sa, sb);
     var sc = el("div", "scroll"); sc.id = "album-scroll";
-    var bar = actionBar([["share", "공유", function () { openShare(albumSel.items(albumList())); }]]);
+    var bar = actionBar([["share", "공유", function () { openShare(albumSel.items(albumList())); }],
+      ["trash", "삭제", function () { confirmTrash(albumSel.items(albumList()), function () { albumSel.end(); if (!albumList().length) closeAlbum(); }); }]]);
     albumView.append(head, sc, bar);
     screen.append(albumView);
     back.onclick = function () { if (albumSel.on) albumSel.end(); else closeAlbum(); };
@@ -608,7 +627,94 @@
     photoGrid(list, albumView.querySelector(".scroll"), albumSel);
   }
   function closeAlbum() { if (albumView) albumView.remove(); albumView = null; albumName = null; renderMain(); }
-  function refreshAll() { renderMain(); renderAlbum(); }
+  function refreshAll() { renderMain(); renderAlbum(); renderTrash(); }
+
+  // ---------- 휴지통 ----------
+  var KEEP = 30 * DAY;
+  var trashed = [];
+  // 예시: 미리 지워 둔 항목 몇 개 (28일 전, 10일 전, 어제 지움)
+  [["KakaoTalk", 28], ["카메라", 10], ["스크린샷", 1]].forEach(function (x) {
+    var i = items.findIndex(function (m) { return m.bucket === x[0]; });
+    if (i >= 0) { var m = items.splice(i, 1)[0]; m.trashedAt = NOW - x[1] * DAY; trashed.push(m); }
+  });
+  function daysLeft(m) { return Math.max(0, Math.ceil((m.trashedAt + KEEP - Date.now()) / DAY)); }
+  function dialog(title, body, action, danger, onOk) {
+    var scrim = el("div", "scrim"), box = el("div", "dialog");
+    box.setAttribute("role", "alertdialog"); box.setAttribute("aria-modal", "true");
+    box.innerHTML = "<h4>" + esc(title) + '</h4><p style="margin:0;color:var(--sub);font-size:14px;line-height:1.6">' + esc(body) + '</p><div class="actions"><button type="button" data-a="no">취소</button><button type="button" data-a="ok"' + (danger ? ' style="color:#e0243c"' : "") + ">" + esc(action) + "</button></div>";
+    scrim.append(box); screen.append(scrim);
+    scrim.onclick = function (e) { if (e.target === scrim) scrim.remove(); };
+    box.querySelector("[data-a=no]").onclick = function () { scrim.remove(); };
+    box.querySelector("[data-a=ok]").onclick = function () { scrim.remove(); onOk(); };
+    box.querySelector("[data-a=ok]").focus();
+  }
+  function countText(n, verb) { return (n === 1 ? "1개 항목을" : n + "개 항목을") + " " + verb; }
+  function confirmTrash(list, after) {
+    if (!list.length) { toast("항목을 선택하세요"); return; }
+    dialog(list.length === 1 ? "휴지통으로 이동할까요?" : list.length + "개 항목을 휴지통으로 이동할까요?", "휴지통에 30일 동안 보관된 뒤 완전히 삭제됩니다.", "휴지통으로 이동", false, function () {
+      list.forEach(function (m) { var i = items.indexOf(m); if (i >= 0) items.splice(i, 1); m.trashedAt = Date.now(); trashed.push(m); });
+      toast(countText(list.length, "휴지통으로 이동했습니다"));
+      if (after) after();
+      refreshAll();
+    });
+  }
+  var trashView = null, trashSel = new Selection(function () { renderTrash(); });
+  function trashList() { return trashed.slice().sort(function (a, b) { return a.trashedAt - b.trashedAt; }); }
+  function openTrash() {
+    trashSel.on = false; trashSel.ids.clear();
+    trashView = el("div", "view");
+    var head = el("div", "subheader");
+    var back = iconBtn("back", "뒤로");
+    var t = el("div", "titles", '<div class="t">휴지통</div><div class="s"></div>');
+    var sa = el("button", "pill", "전체 선택"); sa.type = "button";
+    var empty = el("button", "pill danger", "비우기"); empty.type = "button"; empty.id = "trash-empty";
+    head.append(back, t, sa, empty);
+    var sc = el("div", "scroll");
+    var bar = actionBar([["restore", "복원", function () { restore(trashSel.items(trashList())); }], ["trash", "삭제", function () { destroy(trashSel.items(trashList())); }]]);
+    trashView.append(head, sc, bar);
+    screen.append(trashView);
+    back.onclick = function () { if (trashSel.on) trashSel.end(); else { trashView.remove(); trashView = null; } };
+    sa.onclick = function () { trashSel.on = true; trashSel.all(trashList()); };
+    empty.onclick = function () { destroy(trashList()); };
+    renderTrash();
+    back.focus();
+  }
+  function restore(list) {
+    if (!list.length) { toast("항목을 선택하세요"); return; }
+    list.forEach(function (m) { trashed.splice(trashed.indexOf(m), 1); delete m.trashedAt; items.push(m); trashSel.ids.delete(m.id); });
+    trashSel.on = false; toast(countText(list.length, "복원했습니다")); refreshAll();
+  }
+  function destroy(list) {
+    if (!list.length) { toast("항목을 선택하세요"); return; }
+    dialog(list.length === 1 ? "완전히 삭제할까요?" : list.length + "개 항목을 완전히 삭제할까요?", "삭제한 항목은 되돌릴 수 없습니다.", "삭제", true, function () {
+      list.forEach(function (m) { trashed.splice(trashed.indexOf(m), 1); trashSel.ids.delete(m.id); });
+      trashSel.on = false; toast(countText(list.length, "완전히 삭제했습니다")); refreshAll();
+    });
+  }
+  function renderTrash() {
+    if (!trashView) return;
+    var list = trashList(), sel = trashSel.on, n = trashSel.ids.size;
+    var back = trashView.querySelector(".subheader .iconbtn");
+    back.innerHTML = svg(sel ? "close" : "back"); back.setAttribute("aria-label", sel ? "선택 취소" : "뒤로");
+    trashView.querySelector(".t").textContent = sel ? (n ? n + "개 선택됨" : "항목 선택") : "휴지통";
+    trashView.querySelector(".s").textContent = list.length ? "항목 " + list.length + "개 · 30일이 지나면 완전히 삭제됩니다" : "지운 항목은 30일 동안 여기에 보관됩니다";
+    var sa = trashView.querySelector(".pill"); sa.hidden = !sel; sa.textContent = n && n === list.length ? "선택 해제" : "전체 선택";
+    trashView.querySelector("#trash-empty").hidden = sel || !list.length;
+    trashView.querySelector(".actionbar").hidden = !sel;
+    var sc = trashView.querySelector(".scroll");
+    sc.textContent = "";
+    if (!list.length) { sc.innerHTML = '<div class="empty">휴지통이 비어 있습니다</div>'; return; }
+    sc.classList.toggle("selecting", sel);
+    var grid = el("div", "grid"); grid.style.gridTemplateColumns = "repeat(4, 1fr)"; grid.style.paddingTop = "4px";
+    list.forEach(function (m) {
+      var c = el("button", "cell" + (trashSel.ids.has(m.id) ? " on" : ""), '<span class="check"></span><span class="badge">' + daysLeft(m) + "일</span>" + (m.video ? '<span class="dur">' + dur(m.dur) + "</span>" : ""));
+      c.type = "button"; c.style.backgroundImage = "url(" + thumb(m) + ")";
+      c.setAttribute("aria-label", m.name + ", " + daysLeft(m) + "일 뒤 삭제");
+      c.onclick = function () { trashSel.on = true; trashSel.toggle(m.id); };
+      grid.append(c);
+    });
+    sc.append(grid);
+  }
 
   // ---------- 정렬 대화상자 ----------
   function openSort() {
@@ -672,6 +778,7 @@
       '<div class="vbar"><div class="pos"></div>' +
       '<button type="button" class="iconbtn" data-a="edit" aria-label="편집">' + svg("edit") + "</button>" +
       '<button type="button" class="iconbtn" data-a="share" aria-label="공유">' + svg("share") + "</button>" +
+      '<button type="button" class="iconbtn" data-a="delete" aria-label="삭제">' + svg("trash") + "</button>" +
       '<button type="button" class="iconbtn" data-a="info" aria-label="상세 정보">' + svg("info") + "</button></div></div>";
     v.prepend(cv);
     screen.append(v);
@@ -775,6 +882,13 @@
     v.querySelector('[data-a="back"]').onclick = close;
     v.querySelector('[data-a="info"]').onclick = function () { info.hidden = !info.hidden; };
     v.querySelector('[data-a="share"]').onclick = function () { openShare([cur()]); };
+    v.querySelector('[data-a="delete"]').onclick = function () {
+      stopVideo();
+      confirmTrash([cur()], function () {
+        list.splice(index, 1);
+        if (!list.length) close(); else show(Math.min(index, list.length - 1));
+      });
+    };
     v.querySelector('[data-a="edit"]').onclick = function () { stopVideo(); drawStill(); if (cur().video) openTrim(cur()); else openPhotoEditor(cur()); };
     ctl.querySelector("[data-a=pp]").onclick = function () { if (playing) pause(); else { play(); } };
     seekIn.oninput = function () { playT = seekIn.value / 1000 * cur().dur; drawFrame(cv, cur(), playT); };

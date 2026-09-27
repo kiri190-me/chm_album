@@ -94,6 +94,43 @@ public final class Ui {
         return bar;
     }
 
+    /** 버튼 아래에 뜨는 간단한 메뉴 (One UI 풍의 둥근 카드). */
+    public static void showMenu(View anchor, String[] labels, final Runnable[] actions) {
+        Context c = anchor.getContext();
+        LinearLayout box = new LinearLayout(c);
+        box.setOrientation(LinearLayout.VERTICAL);
+        android.graphics.drawable.GradientDrawable bg = new android.graphics.drawable.GradientDrawable();
+        bg.setColor(0xFFFFFFFF);
+        bg.setCornerRadius(dp(c, 18));
+        box.setBackground(bg);
+        box.setElevation(dp(c, 8));
+        box.setPadding(0, dp(c, 6), 0, dp(c, 6));
+        final android.widget.PopupWindow pw = new android.widget.PopupWindow(box,
+                android.view.ViewGroup.LayoutParams.WRAP_CONTENT, android.view.ViewGroup.LayoutParams.WRAP_CONTENT, true);
+        TypedValue tv = new TypedValue();
+        c.getTheme().resolveAttribute(android.R.attr.selectableItemBackground, tv, true);
+        for (int i = 0; i < labels.length; i++) {
+            final Runnable action = actions[i];
+            TextView row = text(c, labels[i], 16, TEXT, false);
+            row.setGravity(Gravity.CENTER_VERTICAL);
+            row.setMinWidth(dp(c, 180));
+            row.setPadding(dp(c, 20), 0, dp(c, 24), 0);
+            row.setBackgroundResource(tv.resourceId);
+            row.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    pw.dismiss();
+                    action.run();
+                }
+            });
+            box.addView(row, new LinearLayout.LayoutParams(android.view.ViewGroup.LayoutParams.MATCH_PARENT, dp(c, 48)));
+        }
+        pw.setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(0));
+        pw.setOutsideTouchable(true);
+        pw.setElevation(dp(c, 8));
+        pw.showAsDropDown(anchor, -dp(c, 140), 0);
+    }
+
     public static void lightNavigationBar(Activity a) {
         if (Build.VERSION.SDK_INT >= 26) {
             View d = a.getWindow().getDecorView();

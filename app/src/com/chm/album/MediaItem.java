@@ -27,6 +27,8 @@ public class MediaItem {
     public final String relativePath;
     /** 파일 경로 (Android 9 이하에서 저장 위치를 정할 때 사용). 없으면 null. */
     public final String dataPath;
+    /** 휴지통 항목이 완전히 삭제될 시각(ms). 휴지통 밖의 항목은 0. */
+    public long expiresMs;
 
     public MediaItem(long id, Uri uri, boolean isVideo, String mime, String name,
                      String bucketId, String bucketName,
