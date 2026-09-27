@@ -5,11 +5,13 @@ import android.content.ContentUris;
 import android.content.Context;
 import android.database.Cursor;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
 import android.provider.MediaStore;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -18,7 +20,7 @@ import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-/** MediaStore 조회, 정렬, 폴더(앨범) 묶기. */
+/** MediaStore 조회(사진 + 동영상), 정렬, 폴더(앨범) 묶기. */
 public final class MediaRepository {
 
     public interface Callback {
@@ -36,6 +38,9 @@ public final class MediaRepository {
             this.name = name;
         }
     }
+
+    /** MediaStore.MediaColumns.RELATIVE_PATH (API 29) */
+    static final String COL_RELATIVE_PATH = "relative_path";
 
     private static final ExecutorService IO = Executors.newSingleThreadExecutor();
     private static final Handler MAIN = new Handler(Looper.getMainLooper());
@@ -69,59 +74,88 @@ public final class MediaRepository {
 
     private static List<MediaItem> query(ContentResolver cr) {
         List<MediaItem> out = new ArrayList<>();
-        Uri base = MediaStore.Images.Media.EXTERNAL_CONTENT_URI;
-        String[] projection = {
-                MediaStore.Images.Media._ID,
-                MediaStore.Images.Media.DISPLAY_NAME,
-                MediaStore.Images.Media.BUCKET_ID,
-                MediaStore.Images.Media.BUCKET_DISPLAY_NAME,
-                MediaStore.Images.Media.DATE_TAKEN,
-                MediaStore.Images.Media.DATE_ADDED,
-                MediaStore.Images.Media.DATE_MODIFIED,
-                MediaStore.Images.Media.WIDTH,
-                MediaStore.Images.Media.HEIGHT,
-                MediaStore.Images.Media.ORIENTATION,
-                MediaStore.Images.Media.SIZE,
-        };
+        queryTable(cr, MediaStore.Images.Media.EXTERNAL_CONTENT_URI, false, out);
+        queryTable(cr, MediaStore.Video.Media.EXTERNAL_CONTENT_URI, true, out);
+        return out;
+    }
+
+    /** 사진/동영상 테이블 하나를 읽는다. 권한이 없는 테이블은 건너뛴다. */
+    private static void queryTable(ContentResolver cr, Uri base, boolean video, List<MediaItem> out) {
+        List<String> cols = new ArrayList<>(Arrays.asList(
+                MediaStore.MediaColumns._ID,
+                MediaStore.MediaColumns.DISPLAY_NAME,
+                MediaStore.MediaColumns.MIME_TYPE,
+                MediaStore.Images.ImageColumns.BUCKET_ID,
+                MediaStore.Images.ImageColumns.BUCKET_DISPLAY_NAME,
+                MediaStore.Images.ImageColumns.DATE_TAKEN,
+                MediaStore.MediaColumns.DATE_ADDED,
+                MediaStore.MediaColumns.DATE_MODIFIED,
+                MediaStore.MediaColumns.WIDTH,
+                MediaStore.MediaColumns.HEIGHT,
+                MediaStore.MediaColumns.SIZE,
+                MediaStore.MediaColumns.DATA));
+        cols.add(video ? MediaStore.Video.VideoColumns.DURATION : MediaStore.Images.ImageColumns.ORIENTATION);
+        if (Build.VERSION.SDK_INT >= 29) cols.add(COL_RELATIVE_PATH);
+
         Cursor c = null;
         try {
-            c = cr.query(base, projection, null, null, null);
-            if (c == null) return out;
-            int iId = c.getColumnIndex(MediaStore.Images.Media._ID);
-            int iName = c.getColumnIndex(MediaStore.Images.Media.DISPLAY_NAME);
-            int iBucket = c.getColumnIndex(MediaStore.Images.Media.BUCKET_ID);
-            int iBucketName = c.getColumnIndex(MediaStore.Images.Media.BUCKET_DISPLAY_NAME);
-            int iTaken = c.getColumnIndex(MediaStore.Images.Media.DATE_TAKEN);
-            int iAdded = c.getColumnIndex(MediaStore.Images.Media.DATE_ADDED);
-            int iModified = c.getColumnIndex(MediaStore.Images.Media.DATE_MODIFIED);
-            int iW = c.getColumnIndex(MediaStore.Images.Media.WIDTH);
-            int iH = c.getColumnIndex(MediaStore.Images.Media.HEIGHT);
-            int iOri = c.getColumnIndex(MediaStore.Images.Media.ORIENTATION);
-            int iSize = c.getColumnIndex(MediaStore.Images.Media.SIZE);
+            c = cr.query(base, cols.toArray(new String[0]), null, null, null);
+            if (c == null) return;
+            int iId = c.getColumnIndex(MediaStore.MediaColumns._ID);
+            int iName = c.getColumnIndex(MediaStore.MediaColumns.DISPLAY_NAME);
+            int iMime = c.getColumnIndex(MediaStore.MediaColumns.MIME_TYPE);
+            int iBucket = c.getColumnIndex(MediaStore.Images.ImageColumns.BUCKET_ID);
+            int iBucketName = c.getColumnIndex(MediaStore.Images.ImageColumns.BUCKET_DISPLAY_NAME);
+            int iTaken = c.getColumnIndex(MediaStore.Images.ImageColumns.DATE_TAKEN);
+            int iAdded = c.getColumnIndex(MediaStore.MediaColumns.DATE_ADDED);
+            int iModified = c.getColumnIndex(MediaStore.MediaColumns.DATE_MODIFIED);
+            int iW = c.getColumnIndex(MediaStore.MediaColumns.WIDTH);
+            int iH = c.getColumnIndex(MediaStore.MediaColumns.HEIGHT);
+            int iSize = c.getColumnIndex(MediaStore.MediaColumns.SIZE);
+            int iData = c.getColumnIndex(MediaStore.MediaColumns.DATA);
+            int iDur = video ? c.getColumnIndex(MediaStore.Video.VideoColumns.DURATION) : -1;
+            int iOri = video ? -1 : c.getColumnIndex(MediaStore.Images.ImageColumns.ORIENTATION);
+            int iRel = c.getColumnIndex(COL_RELATIVE_PATH);
             while (c.moveToNext()) {
                 long id = c.getLong(iId);
-                String bucketId = c.isNull(iBucket) ? "_" : c.getString(iBucket);
-                String bucketName = c.isNull(iBucketName) ? null : c.getString(iBucketName);
+                String bucketName = str(c, iBucketName);
+                String bucketId = str(c, iBucket);
                 out.add(new MediaItem(
                         id,
                         ContentUris.withAppendedId(base, id),
-                        c.isNull(iName) ? "" : c.getString(iName),
-                        bucketId,
+                        video,
+                        orDefault(str(c, iMime), video ? "video/mp4" : "image/jpeg"),
+                        orDefault(str(c, iName), ""),
+                        bucketId == null ? "_" : bucketId,
                         prettyBucketName(bucketName),
-                        c.isNull(iTaken) ? 0 : c.getLong(iTaken),
-                        c.isNull(iAdded) ? 0 : c.getLong(iAdded) * 1000L,
-                        c.isNull(iModified) ? 0 : c.getLong(iModified) * 1000L,
-                        c.isNull(iW) ? 0 : c.getInt(iW),
-                        c.isNull(iH) ? 0 : c.getInt(iH),
-                        c.isNull(iOri) ? 0 : c.getInt(iOri),
-                        c.isNull(iSize) ? 0 : c.getLong(iSize)));
+                        lng(c, iTaken),
+                        lng(c, iAdded) * 1000L,
+                        lng(c, iModified) * 1000L,
+                        (int) lng(c, iW),
+                        (int) lng(c, iH),
+                        (int) lng(c, iOri),
+                        lng(c, iSize),
+                        lng(c, iDur),
+                        str(c, iRel),
+                        str(c, iData)));
             }
         } catch (Exception e) {
-            // 권한이 없거나 저장소를 읽을 수 없는 경우 빈 목록
+            // 권한이 없거나 저장소를 읽을 수 없는 경우 건너뜀
         } finally {
             if (c != null) c.close();
         }
-        return out;
+    }
+
+    private static String str(Cursor c, int i) {
+        return i < 0 || c.isNull(i) ? null : c.getString(i);
+    }
+
+    private static long lng(Cursor c, int i) {
+        return i < 0 || c.isNull(i) ? 0 : c.getLong(i);
+    }
+
+    private static String orDefault(String s, String def) {
+        return s == null || s.isEmpty() ? def : s;
     }
 
     private static String prettyBucketName(String raw) {
@@ -147,11 +181,27 @@ public final class MediaRepository {
             @Override
             public int compare(MediaItem a, MediaItem b) {
                 int r = Long.compare(a.time(basis), b.time(basis));
-                if (r == 0) r = Long.compare(a.id, b.id);
+                if (r == 0) r = Long.compare(a.key(), b.key());
                 return desc ? -r : r;
             }
         });
         return list;
+    }
+
+    public static List<MediaItem> videosOnly(List<MediaItem> src) {
+        List<MediaItem> list = new ArrayList<>();
+        for (MediaItem m : src) {
+            if (m.isVideo) list.add(m);
+        }
+        return list;
+    }
+
+    public static int countVideos(List<MediaItem> src) {
+        int n = 0;
+        for (MediaItem m : src) {
+            if (m.isVideo) n++;
+        }
+        return n;
     }
 
     public static List<MediaItem> inBucket(List<MediaItem> src, String bucketId) {

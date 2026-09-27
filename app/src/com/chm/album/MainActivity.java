@@ -31,27 +31,36 @@ public class MainActivity extends Activity {
 
     private static final int REQ_PERMISSION = 7;
     private static final int TAB_PHOTOS = 0;
-    private static final int TAB_ALBUMS = 1;
+    private static final int TAB_VIDEOS = 1;
+    private static final int TAB_ALBUMS = 2;
+    private static final String[] TAB_TITLES = {"사진", "동영상", "앨범"};
     private static final String STATE_TAB = "tab";
 
     private SortPrefs prefs;
     private TextView title;
     private TextView subtitle;
     private ImageView sortButton;
+    private TextView selectAllButton;
+    private ImageView closeSelectionButton;
     private PinchListView photosList;
+    private PinchListView videosList;
     private GridView albumsGrid;
     private LinearLayout messageView;
     private TextView messageText;
     private Button messageButton;
-    private TextView tabPhotos;
-    private TextView tabAlbums;
+    private LinearLayout tabBar;
+    private View selectionBar;
+    private final TextView[] tabViews = new TextView[3];
 
     private PhotoGridAdapter photoAdapter;
+    private PhotoGridAdapter videoAdapter;
     private AlbumAdapter albumAdapter;
 
     private int currentTab = TAB_PHOTOS;
     private List<MediaItem> all = new ArrayList<>();
+    private int videoCount;
     private List<MediaRepository.Album> albums = new ArrayList<>();
+    private boolean permissionMissing;
     private boolean loaded;
     private boolean askedOnce;
     /** 마지막으로 적용한 정렬 설정 (다른 화면에서 바뀌었는지 확인용) */
@@ -104,7 +113,10 @@ public class MainActivity extends Activity {
         } else if (loaded && !appliedSort.equals(prefs.label())) {
             applyData(); // 앨범 화면에서 정렬을 바꾼 경우
         }
-        if (photoAdapter.getColumns() != prefs.columns()) photoAdapter.setColumns(prefs.columns());
+        if (photoAdapter.getColumns() != prefs.columns()) {
+            photoAdapter.setColumns(prefs.columns());
+            videoAdapter.setColumns(prefs.columns());
+        }
     }
 
     @Override
@@ -115,6 +127,16 @@ public class MainActivity extends Activity {
         } catch (Exception ignored) {
         }
         handler.removeCallbacks(reloadRunnable);
+    }
+
+    @Override
+    public void onBackPressed() {
+        PhotoGridAdapter a = currentGridAdapter();
+        if (a != null && a.isSelectionMode()) {
+            a.endSelection();
+            return;
+        }
+        super.onBackPressed();
     }
 
     // ---------------------------------------------------------------- 레이아웃
@@ -133,7 +155,10 @@ public class MainActivity extends Activity {
         LinearLayout titles = new LinearLayout(this);
         titles.setOrientation(LinearLayout.VERTICAL);
         title = Ui.text(this, "사진", 30, Ui.TEXT, true);
+        title.setSingleLine(true);
         subtitle = Ui.text(this, "", 13, Ui.SUBTEXT, false);
+        subtitle.setSingleLine(true);
+        subtitle.setEllipsize(android.text.TextUtils.TruncateAt.END);
         subtitle.setPadding(0, Ui.dp(this, 2), 0, 0);
         titles.addView(title);
         titles.addView(subtitle);
@@ -153,36 +178,52 @@ public class MainActivity extends Activity {
             }
         });
         header.addView(sortButton, new LinearLayout.LayoutParams(Ui.dp(this, 44), Ui.dp(this, 44)));
+
+        selectAllButton = Ui.pillButton(this, "전체 선택");
+        selectAllButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                PhotoGridAdapter a = currentGridAdapter();
+                if (a != null) a.selectAll(!a.allSelected());
+            }
+        });
+        LinearLayout.LayoutParams salp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, Ui.dp(this, 36));
+        salp.bottomMargin = Ui.dp(this, 4);
+        header.addView(selectAllButton, salp);
+
+        closeSelectionButton = Ui.iconButton(this, R.drawable.ic_close, Ui.TEXT);
+        closeSelectionButton.setContentDescription("선택 취소");
+        closeSelectionButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                PhotoGridAdapter a = currentGridAdapter();
+                if (a != null) a.endSelection();
+            }
+        });
+        header.addView(closeSelectionButton, new LinearLayout.LayoutParams(Ui.dp(this, 44), Ui.dp(this, 44)));
         root.addView(header);
 
         // 본문
         FrameLayout content = new FrameLayout(this);
 
-        photosList = new PinchListView(this);
-        photosList.setDivider(null);
-        photosList.setSelector(android.R.color.transparent);
-        photosList.setFastScrollEnabled(true);
-        photosList.setClipToPadding(false);
-        photosList.setPadding(0, 0, 0, Ui.dp(this, 8));
-        photoAdapter = new PhotoGridAdapter(this, true, prefs.columns(), new PhotoGridAdapter.OnPhotoClick() {
+        PhotoGridAdapter.Listener gridListener = new PhotoGridAdapter.Listener() {
             @Override
-            public void onPhotoClick(List<MediaItem> items, int index) {
+            public void onItemClick(List<MediaItem> items, int index) {
                 ViewerActivity.open(MainActivity.this, items, index);
             }
-        });
-        photosList.setAdapter(photoAdapter);
-        photosList.setOnPinchListener(new PinchListView.OnPinchListener() {
+
             @Override
-            public void onPinch(boolean zoomIn) {
-                int cols = photoAdapter.getColumns() + (zoomIn ? -1 : 1);
-                cols = Math.max(2, Math.min(7, cols));
-                if (cols != photoAdapter.getColumns()) {
-                    prefs.setColumns(cols);
-                    photoAdapter.setColumns(cols);
-                }
+            public void onSelectionChanged(boolean selectionMode, int count) {
+                updateHeader();
             }
-        });
+        };
+        photoAdapter = new PhotoGridAdapter(this, true, prefs.columns(), gridListener);
+        videoAdapter = new PhotoGridAdapter(this, true, prefs.columns(), gridListener);
+        photosList = gridList(photoAdapter);
+        videosList = gridList(videoAdapter);
         content.addView(photosList, match());
+        content.addView(videosList, match());
 
         albumsGrid = new GridView(this);
         albumsGrid.setNumColumns(3);
@@ -229,17 +270,53 @@ public class MainActivity extends Activity {
         root.addView(content, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
 
         // 하단 탭
-        LinearLayout tabs = new LinearLayout(this);
-        tabs.setOrientation(LinearLayout.HORIZONTAL);
-        tabs.setBackgroundColor(Ui.BG);
-        tabs.setElevation(Ui.dp(this, 2));
-        tabs.setPadding(0, Ui.dp(this, 4), 0, Ui.dp(this, 4));
-        tabPhotos = tab("사진", TAB_PHOTOS);
-        tabAlbums = tab("앨범", TAB_ALBUMS);
-        tabs.addView(tabPhotos, new LinearLayout.LayoutParams(0, Ui.dp(this, 52), 1f));
-        tabs.addView(tabAlbums, new LinearLayout.LayoutParams(0, Ui.dp(this, 52), 1f));
-        root.addView(tabs);
+        tabBar = new LinearLayout(this);
+        tabBar.setOrientation(LinearLayout.HORIZONTAL);
+        tabBar.setBackgroundColor(Ui.BG);
+        tabBar.setElevation(Ui.dp(this, 2));
+        tabBar.setPadding(0, Ui.dp(this, 4), 0, Ui.dp(this, 4));
+        for (int i = 0; i < TAB_TITLES.length; i++) {
+            tabViews[i] = tab(TAB_TITLES[i], i);
+            tabBar.addView(tabViews[i], new LinearLayout.LayoutParams(0, Ui.dp(this, 52), 1f));
+        }
+        root.addView(tabBar);
+
+        // 선택 모드의 하단 동작 막대
+        selectionBar = Ui.actionBar(this, Ui.TEXT, Ui.BG,
+                new int[]{R.drawable.ic_share}, new String[]{"공유"},
+                new View.OnClickListener[]{new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        PhotoGridAdapter a = currentGridAdapter();
+                        if (a != null) ShareHelper.share(MainActivity.this, a.getSelectedItems());
+                    }
+                }});
+        selectionBar.setVisibility(View.GONE);
+        root.addView(selectionBar);
         return root;
+    }
+
+    private PinchListView gridList(final PhotoGridAdapter adapter) {
+        PinchListView list = new PinchListView(this);
+        list.setDivider(null);
+        list.setSelector(android.R.color.transparent);
+        list.setFastScrollEnabled(true);
+        list.setClipToPadding(false);
+        list.setPadding(0, 0, 0, Ui.dp(this, 8));
+        list.setAdapter(adapter);
+        list.setOnPinchListener(new PinchListView.OnPinchListener() {
+            @Override
+            public void onPinch(boolean zoomIn) {
+                int cols = adapter.getColumns() + (zoomIn ? -1 : 1);
+                cols = Math.max(2, Math.min(7, cols));
+                if (cols != adapter.getColumns()) {
+                    prefs.setColumns(cols);
+                    photoAdapter.setColumns(cols);
+                    videoAdapter.setColumns(cols);
+                }
+            }
+        });
+        return list;
     }
 
     private TextView tab(String label, final int index) {
@@ -265,13 +342,19 @@ public class MainActivity extends Activity {
         return new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
     }
 
+    private PhotoGridAdapter currentGridAdapter() {
+        if (currentTab == TAB_PHOTOS) return photoAdapter;
+        if (currentTab == TAB_VIDEOS) return videoAdapter;
+        return null;
+    }
+
     private void selectTab(int index) {
+        PhotoGridAdapter before = currentGridAdapter();
+        if (before != null && before.isSelectionMode()) before.endSelection();
         currentTab = index;
-        styleTab(tabPhotos, index == TAB_PHOTOS);
-        styleTab(tabAlbums, index == TAB_ALBUMS);
-        title.setText(index == TAB_PHOTOS ? "사진" : "앨범");
+        for (int i = 0; i < tabViews.length; i++) styleTab(tabViews[i], i == index);
         updateVisibility();
-        updateSubtitle();
+        updateHeader();
     }
 
     private void styleTab(TextView tv, boolean selected) {
@@ -292,22 +375,57 @@ public class MainActivity extends Activity {
 
     private void scrollToTop() {
         if (currentTab == TAB_PHOTOS) photosList.smoothScrollToPosition(0);
+        else if (currentTab == TAB_VIDEOS) videosList.smoothScrollToPosition(0);
         else albumsGrid.smoothScrollToPosition(0);
     }
 
+    /** 현재 탭에 보여줄 안내 문구. 없으면 null. */
+    private String currentMessage() {
+        if (permissionMissing) return "기기의 사진과 동영상을 보여주려면\n접근 권한이 필요합니다.";
+        if (!loaded) return null;
+        if (all.isEmpty()) return "표시할 사진이나 동영상이 없습니다.";
+        if (currentTab == TAB_VIDEOS && videoCount == 0) return "동영상이 없습니다.";
+        return null;
+    }
+
     private void updateVisibility() {
-        boolean showMessage = messageView.getVisibility() == View.VISIBLE;
+        String message = currentMessage();
+        boolean showMessage = message != null;
+        messageView.setVisibility(showMessage ? View.VISIBLE : View.GONE);
+        if (showMessage) {
+            messageText.setText(message);
+            messageButton.setVisibility(permissionMissing ? View.VISIBLE : View.GONE);
+        }
         photosList.setVisibility(!showMessage && currentTab == TAB_PHOTOS ? View.VISIBLE : View.GONE);
+        videosList.setVisibility(!showMessage && currentTab == TAB_VIDEOS ? View.VISIBLE : View.GONE);
         albumsGrid.setVisibility(!showMessage && currentTab == TAB_ALBUMS ? View.VISIBLE : View.GONE);
     }
 
-    private void updateSubtitle() {
-        if (!loaded) {
-            subtitle.setText(prefs.label());
+    /** 제목/부제목과 오른쪽 위 버튼, 하단 막대를 현재 상태에 맞춘다. */
+    private void updateHeader() {
+        PhotoGridAdapter a = currentGridAdapter();
+        boolean selecting = a != null && a.isSelectionMode();
+        sortButton.setVisibility(selecting ? View.GONE : View.VISIBLE);
+        selectAllButton.setVisibility(selecting ? View.VISIBLE : View.GONE);
+        closeSelectionButton.setVisibility(selecting ? View.VISIBLE : View.GONE);
+        tabBar.setVisibility(selecting ? View.GONE : View.VISIBLE);
+        selectionBar.setVisibility(selecting ? View.VISIBLE : View.GONE);
+
+        if (selecting) {
+            int n = a.getSelectedItems().size();
+            title.setText(n == 0 ? "항목 선택" : n + "개 선택됨");
+            subtitle.setText("공유할 항목을 눌러 선택하세요");
+            selectAllButton.setText(a.allSelected() ? "선택 해제" : "전체 선택");
             return;
         }
-        if (currentTab == TAB_PHOTOS) {
-            subtitle.setText("사진 " + Ui.count(all.size()) + "장 · " + prefs.label());
+        title.setText(TAB_TITLES[currentTab]);
+        if (!loaded) {
+            subtitle.setText(prefs.label());
+        } else if (currentTab == TAB_PHOTOS) {
+            subtitle.setText("사진 " + Ui.count(all.size() - videoCount) + " · 동영상 "
+                    + Ui.count(videoCount) + " · " + prefs.label());
+        } else if (currentTab == TAB_VIDEOS) {
+            subtitle.setText("동영상 " + Ui.count(videoCount) + "개 · " + prefs.label());
         } else {
             subtitle.setText("앨범 " + Ui.count(albums.size()) + "개 · " + prefs.label());
         }
@@ -315,23 +433,34 @@ public class MainActivity extends Activity {
 
     // ---------------------------------------------------------------- 권한
 
-    private String permissionName() {
-        return Build.VERSION.SDK_INT >= 33
-                ? "android.permission.READ_MEDIA_IMAGES"
-                : Manifest.permission.READ_EXTERNAL_STORAGE;
+    private String[] permissionNames() {
+        if (Build.VERSION.SDK_INT >= 33) {
+            return new String[]{"android.permission.READ_MEDIA_IMAGES", "android.permission.READ_MEDIA_VIDEO"};
+        }
+        return new String[]{Manifest.permission.READ_EXTERNAL_STORAGE};
     }
 
     private boolean hasPermission() {
-        if (checkSelfPermission(permissionName()) == PackageManager.PERMISSION_GRANTED) return true;
-        // Android 14+ '일부 사진만 허용'
+        for (String p : permissionNames()) {
+            if (checkSelfPermission(p) == PackageManager.PERMISSION_GRANTED) return true;
+        }
+        // Android 14+ '일부 사진 및 동영상만 허용'
         return Build.VERSION.SDK_INT >= 34
                 && checkSelfPermission("android.permission.READ_MEDIA_VISUAL_USER_SELECTED")
                 == PackageManager.PERMISSION_GRANTED;
     }
 
+    private boolean canAskAgain() {
+        if (!askedOnce) return true;
+        for (String p : permissionNames()) {
+            if (shouldShowRequestPermissionRationale(p)) return true;
+        }
+        return false;
+    }
+
     private void requestPermission() {
         askedOnce = true;
-        requestPermissions(new String[]{permissionName()}, REQ_PERMISSION);
+        requestPermissions(permissionNames(), REQ_PERMISSION);
     }
 
     @Override
@@ -345,14 +474,12 @@ public class MainActivity extends Activity {
     }
 
     private void showPermissionMessage() {
-        messageText.setText("기기의 사진을 보여주려면\n사진 접근 권한이 필요합니다.");
-        messageButton.setVisibility(View.VISIBLE);
-        final boolean canAsk = !askedOnce || shouldShowRequestPermissionRationale(permissionName());
-        messageButton.setText(canAsk ? "권한 허용" : "설정에서 허용");
+        permissionMissing = true;
+        messageButton.setText(canAskAgain() ? "권한 허용" : "설정에서 허용");
         messageButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                if (!askedOnce || shouldShowRequestPermissionRationale(permissionName())) {
+                if (canAskAgain()) {
                     requestPermission();
                 } else {
                     Intent i = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
@@ -361,17 +488,16 @@ public class MainActivity extends Activity {
                 }
             }
         });
-        messageView.setVisibility(View.VISIBLE);
         updateVisibility();
     }
 
     private void onPermissionReady() {
         loaded = true;
-        messageView.setVisibility(View.GONE);
+        permissionMissing = false;
         updateVisibility();
         getContentResolver().unregisterContentObserver(observer);
-        getContentResolver().registerContentObserver(
-                MediaStore.Images.Media.EXTERNAL_CONTENT_URI, true, observer);
+        getContentResolver().registerContentObserver(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, true, observer);
+        getContentResolver().registerContentObserver(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, true, observer);
         reload();
     }
 
@@ -388,23 +514,18 @@ public class MainActivity extends Activity {
         });
     }
 
-    /** 현재 정렬 설정으로 두 탭을 다시 구성한다. */
+    /** 현재 정렬 설정으로 모든 탭을 다시 구성한다. */
     private void applyData() {
         appliedSort = prefs.label();
         int basis = prefs.basis();
         List<MediaItem> sorted = MediaRepository.sorted(all, basis, prefs.descending());
+        List<MediaItem> videos = MediaRepository.videosOnly(sorted);
+        videoCount = videos.size();
         photoAdapter.setItems(sorted, basis);
+        videoAdapter.setItems(videos, basis);
         albums = MediaRepository.albums(sorted, basis);
         albumAdapter.setAlbums(albums);
-
-        if (loaded && all.isEmpty()) {
-            messageText.setText("표시할 사진이 없습니다.");
-            messageButton.setVisibility(View.GONE);
-            messageView.setVisibility(View.VISIBLE);
-        } else if (loaded) {
-            messageView.setVisibility(View.GONE);
-        }
         updateVisibility();
-        updateSubtitle();
+        updateHeader();
     }
 }

@@ -10,16 +10,23 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * ListView 한 줄에 사진 N장을 배치하는 격자 어댑터.
  * grouped 이면 정렬 기준 날짜로 하루 단위 헤더를 끼워 넣는다.
+ * 길게 누르면 선택 모드가 되어 여러 항목을 골라 공유할 수 있다.
  */
 public class PhotoGridAdapter extends BaseAdapter {
 
-    public interface OnPhotoClick {
-        void onPhotoClick(List<MediaItem> items, int index);
+    public interface Listener {
+        /** 선택 모드가 아닐 때 항목을 누름 */
+        void onItemClick(List<MediaItem> items, int index);
+
+        /** 선택 모드 진입/해제 또는 선택 개수 변경 */
+        void onSelectionChanged(boolean selectionMode, int count);
     }
 
     private static final int TYPE_HEADER = 0;
@@ -42,19 +49,21 @@ public class PhotoGridAdapter extends BaseAdapter {
     private final Context ctx;
     private final ThumbnailLoader loader;
     private final boolean grouped;
-    private final OnPhotoClick click;
+    private final Listener listener;
+    private final Set<Long> selected = new HashSet<>();
+    private boolean selectionMode;
     private final int gap;
     private List<MediaItem> items = new ArrayList<>();
     private final List<Row> rows = new ArrayList<>();
     private int basis;
     private int columns;
 
-    public PhotoGridAdapter(Context ctx, boolean grouped, int columns, OnPhotoClick click) {
+    public PhotoGridAdapter(Context ctx, boolean grouped, int columns, Listener listener) {
         this.ctx = ctx;
         this.loader = ThumbnailLoader.get(ctx);
         this.grouped = grouped;
         this.columns = columns;
-        this.click = click;
+        this.listener = listener;
         this.gap = Math.max(1, Ui.dp(ctx, 1.5f));
     }
 
@@ -62,7 +71,58 @@ public class PhotoGridAdapter extends BaseAdapter {
     public void setItems(List<MediaItem> items, int basis) {
         this.items = items;
         this.basis = basis;
+        if (!selected.isEmpty()) {
+            // 사라진 항목은 선택에서 뺀다
+            Set<Long> alive = new HashSet<>();
+            for (MediaItem m : items) alive.add(m.key());
+            selected.retainAll(alive);
+            listener.onSelectionChanged(selectionMode, selected.size());
+        }
         rebuild();
+    }
+
+    public boolean isSelectionMode() {
+        return selectionMode;
+    }
+
+    public void startSelection() {
+        selectionMode = true;
+        notifyDataSetChanged();
+        listener.onSelectionChanged(true, selected.size());
+    }
+
+    public void endSelection() {
+        selectionMode = false;
+        selected.clear();
+        notifyDataSetChanged();
+        listener.onSelectionChanged(false, 0);
+    }
+
+    public boolean allSelected() {
+        return !items.isEmpty() && selected.size() == items.size();
+    }
+
+    public void selectAll(boolean all) {
+        selected.clear();
+        if (all) {
+            for (MediaItem m : items) selected.add(m.key());
+        }
+        notifyDataSetChanged();
+        listener.onSelectionChanged(selectionMode, selected.size());
+    }
+
+    public List<MediaItem> getSelectedItems() {
+        List<MediaItem> out = new ArrayList<>();
+        for (MediaItem m : items) {
+            if (selected.contains(m.key())) out.add(m);
+        }
+        return out;
+    }
+
+    private void toggle(MediaItem m) {
+        if (!selected.remove(m.key())) selected.add(m.key());
+        notifyDataSetChanged();
+        listener.onSelectionChanged(selectionMode, selected.size());
     }
 
     public void setColumns(int columns) {
@@ -145,7 +205,7 @@ public class PhotoGridAdapter extends BaseAdapter {
                     ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
             line.setPadding(0, 0, 0, gap);
             for (int c = 0; c < columns; c++) {
-                SquareImageView iv = new SquareImageView(ctx);
+                MediaCellView iv = new MediaCellView(ctx);
                 iv.setScaleType(ImageView.ScaleType.CENTER_CROP);
                 iv.setBackgroundColor(0xFFE6E6E6);
                 LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0,
@@ -157,20 +217,40 @@ public class PhotoGridAdapter extends BaseAdapter {
 
         int cellPx = Math.max(64, ctx.getResources().getDisplayMetrics().widthPixels / columns);
         for (int c = 0; c < columns; c++) {
-            SquareImageView iv = (SquareImageView) line.getChildAt(c);
+            MediaCellView iv = (MediaCellView) line.getChildAt(c);
             final int index = row.start + c;
             if (index < row.end) {
+                final MediaItem m = items.get(index);
                 iv.setVisibility(View.VISIBLE);
-                loader.load(items.get(index), iv, cellPx);
+                iv.setDuration(m.durationMs, m.isVideo);
+                iv.setSelection(selectionMode, selected.contains(m.key()));
+                iv.setContentDescription((m.isVideo ? "동영상 " : "사진 ") + m.name);
+                loader.load(m, iv, cellPx);
                 iv.setOnClickListener(new View.OnClickListener() {
                     @Override
                     public void onClick(View v) {
-                        click.onPhotoClick(items, index);
+                        if (selectionMode) toggle(m);
+                        else listener.onItemClick(items, index);
+                    }
+                });
+                iv.setOnLongClickListener(new View.OnLongClickListener() {
+                    @Override
+                    public boolean onLongClick(View v) {
+                        if (!selectionMode) {
+                            selectionMode = true;
+                            selected.add(m.key());
+                            notifyDataSetChanged();
+                            listener.onSelectionChanged(true, selected.size());
+                        } else {
+                            toggle(m);
+                        }
+                        return true;
                     }
                 });
             } else {
                 iv.setVisibility(View.INVISIBLE);
                 iv.setOnClickListener(null);
+                iv.setOnLongClickListener(null);
                 iv.setImageDrawable(null);
             }
         }

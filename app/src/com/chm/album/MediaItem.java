@@ -2,10 +2,12 @@ package com.chm.album;
 
 import android.net.Uri;
 
-/** MediaStore 에서 읽어온 사진 한 장. */
+/** MediaStore 에서 읽어온 사진 또는 동영상 하나. */
 public class MediaItem {
     public final long id;
     public final Uri uri;
+    public final boolean isVideo;
+    public final String mime;
     public final String name;
     public final String bucketId;
     public final String bucketName;
@@ -19,12 +21,22 @@ public class MediaItem {
     public final int height;
     public final int orientation;
     public final long size;
+    /** 동영상 길이(ms). 사진은 0. */
+    public final long durationMs;
+    /** Android 10+ 의 저장 폴더 (예: "DCIM/Camera/"). 없으면 null. */
+    public final String relativePath;
+    /** 파일 경로 (Android 9 이하에서 저장 위치를 정할 때 사용). 없으면 null. */
+    public final String dataPath;
 
-    public MediaItem(long id, Uri uri, String name, String bucketId, String bucketName,
+    public MediaItem(long id, Uri uri, boolean isVideo, String mime, String name,
+                     String bucketId, String bucketName,
                      long dateTakenMs, long dateAddedMs, long dateModifiedMs,
-                     int width, int height, int orientation, long size) {
+                     int width, int height, int orientation, long size, long durationMs,
+                     String relativePath, String dataPath) {
         this.id = id;
         this.uri = uri;
+        this.isVideo = isVideo;
+        this.mime = mime;
         this.name = name;
         this.bucketId = bucketId;
         this.bucketName = bucketName;
@@ -35,6 +47,14 @@ public class MediaItem {
         this.height = height;
         this.orientation = orientation;
         this.size = size;
+        this.durationMs = durationMs;
+        this.relativePath = relativePath;
+        this.dataPath = dataPath;
+    }
+
+    /** 사진과 동영상은 id 공간이 달라서 목록 안에서 구분하는 키. */
+    public long key() {
+        return isVideo ? -id : id;
     }
 
     /** 정렬 기준에 해당하는 시각(ms). 메타데이터가 없으면 파일 시각으로 대체한다. */

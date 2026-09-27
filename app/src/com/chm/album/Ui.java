@@ -57,6 +57,43 @@ public final class Ui {
         return iv;
     }
 
+    /** 둥근 테두리의 작은 텍스트 버튼 (예: "전체 선택"). */
+    public static TextView pillButton(Context c, String label) {
+        TextView tv = text(c, label, 14, TEXT, true);
+        tv.setGravity(Gravity.CENTER);
+        tv.setPadding(dp(c, 14), 0, dp(c, 14), 0);
+        android.graphics.drawable.GradientDrawable bg = new android.graphics.drawable.GradientDrawable();
+        bg.setCornerRadius(dp(c, 18));
+        bg.setColor(0x14000000);
+        tv.setBackground(new android.graphics.drawable.RippleDrawable(
+                android.content.res.ColorStateList.valueOf(0x22000000), bg, null));
+        tv.setClickable(true);
+        return tv;
+    }
+
+    /** 아이콘 + 글자 버튼을 가로로 나란히 놓은 하단 막대. */
+    public static LinearLayout actionBar(Context c, int fg, int bg, int[] icons, String[] labels,
+                                         View.OnClickListener[] listeners) {
+        LinearLayout bar = new LinearLayout(c);
+        bar.setOrientation(LinearLayout.HORIZONTAL);
+        bar.setBackgroundColor(bg);
+        bar.setPadding(0, dp(c, 4), 0, dp(c, 4));
+        TypedValue tv = new TypedValue();
+        c.getTheme().resolveAttribute(android.R.attr.selectableItemBackground, tv, true);
+        for (int i = 0; i < labels.length; i++) {
+            TextView b = text(c, labels[i], 12, fg, false);
+            b.setGravity(Gravity.CENTER);
+            android.graphics.drawable.Drawable d = c.getDrawable(icons[i]).mutate();
+            d.setTint(fg);
+            b.setCompoundDrawablesWithIntrinsicBounds(null, d, null, null);
+            b.setCompoundDrawablePadding(dp(c, 2));
+            b.setBackgroundResource(tv.resourceId);
+            b.setOnClickListener(listeners[i]);
+            bar.addView(b, new LinearLayout.LayoutParams(0, dp(c, 56), 1f));
+        }
+        return bar;
+    }
+
     public static void lightNavigationBar(Activity a) {
         if (Build.VERSION.SDK_INT >= 26) {
             View d = a.getWindow().getDecorView();
