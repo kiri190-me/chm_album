@@ -180,6 +180,16 @@ public final class ThumbnailLoader {
         return decodeWithSample(cr, uri, orientation, sampleFor(Math.max(b[0], b[1]), maxSide));
     }
 
+    /** 긴 변이 maxSide 를 넘지 않도록 (2의 거듭제곱으로 줄여) 디코딩한다. */
+    public static Bitmap decodeWithin(ContentResolver cr, Uri uri, int orientation, int maxSide) {
+        int[] b = imageBounds(cr, uri);
+        if (b == null) return null;
+        int longSide = Math.max(b[0], b[1]);
+        int sample = 1;
+        while (longSide / sample > maxSide) sample *= 2;
+        return decodeWithSample(cr, uri, orientation, sample);
+    }
+
     /** 이미지의 원래 가로/세로 크기 (회전 보정 전). 읽지 못하면 null. */
     public static int[] imageBounds(ContentResolver cr, Uri uri) {
         InputStream in = null;

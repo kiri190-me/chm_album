@@ -30,11 +30,13 @@ import java.util.concurrent.Executors;
 
 /**
  * 전체 화면 보기. 좌우로 밀어 이전/다음, 아래로 밀어 닫기, 탭으로 메뉴 표시/숨김.
+ * 사진은 두 손가락으로 벌리거나 두 번 탭해 확대하고, 확대한 채로 끌어 이동한다.
  * 동영상은 가운데 재생 버튼으로 재생한다.
  */
 public class ViewerActivity extends Activity {
 
     private static final String STATE_INDEX = "index";
+    private static final int MAX_ZOOM_SIDE = 4096;
     private static List<MediaItem> sItems;
     private static int sStart;
 
@@ -54,7 +56,7 @@ public class ViewerActivity extends Activity {
     private boolean infoVisible;
     private boolean videoActive;
 
-    private ImageView image;
+    private ZoomImageView image;
     private VideoView video;
     private ImageView bigPlay;
     private LinearLayout topBar;
@@ -123,8 +125,23 @@ public class ViewerActivity extends Activity {
         FrameLayout root = new FrameLayout(this);
         root.setBackgroundColor(0xFF000000);
 
-        image = new ImageView(this);
-        image.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        image = new ZoomImageView(this);
+        image.setListener(new ZoomImageView.Listener() {
+            @Override
+            public void onSingleTap() {
+                setBarsVisible(!barsVisible);
+            }
+
+            @Override
+            public void onSwipe(int direction) {
+                move(direction);
+            }
+
+            @Override
+            public void onSwipeDown() {
+                finish();
+            }
+        });
         root.addView(image, new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
 
@@ -295,6 +312,7 @@ public class ViewerActivity extends Activity {
         root.addView(bottomBar, new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM));
 
+        // 재생 중인 동영상 위의 제스처 (사진은 ZoomImageView 가 직접 처리)
         final GestureDetector gestures = new GestureDetector(this, new GestureDetector.SimpleOnGestureListener() {
             @Override
             public boolean onDown(MotionEvent e) {
@@ -329,7 +347,6 @@ public class ViewerActivity extends Activity {
                 return gestures.onTouchEvent(event);
             }
         };
-        image.setOnTouchListener(touch);
         video.setOnTouchListener(touch);
         return root;
     }
@@ -432,17 +449,21 @@ public class ViewerActivity extends Activity {
         position.setText((i + 1) + " / " + items.size() + "   " + m.bucketName);
         info.setText(infoText(m));
         bigPlay.setVisibility(m.isVideo ? View.VISIBLE : View.GONE);
+        image.resetZoom();
+        image.setZoomEnabled(!m.isVideo);
 
         // 캐시된 썸네일을 먼저 보여주고, 원본을 화면 크기로 디코딩해 교체한다
         ThumbnailLoader.get(this).load(m, image, 256);
-        final int maxSide = Math.max(getResources().getDisplayMetrics().widthPixels,
+        final int screenSide = Math.max(getResources().getDisplayMetrics().widthPixels,
                 getResources().getDisplayMetrics().heightPixels);
+        // 확대해도 선명하도록 화면보다 크게 (최대 긴 변 4096px) 디코딩한다
+        final int zoomSide = Math.min(MAX_ZOOM_SIDE, screenSide * 2);
         io.execute(new Runnable() {
             @Override
             public void run() {
                 final Bitmap bm = m.isVideo
-                        ? ThumbnailLoader.videoFrame(ViewerActivity.this, m.uri, 0, maxSide)
-                        : ThumbnailLoader.decodeForScreen(getContentResolver(), m.uri, m.orientation, maxSide);
+                        ? ThumbnailLoader.videoFrame(ViewerActivity.this, m.uri, 0, screenSide)
+                        : ThumbnailLoader.decodeWithin(getContentResolver(), m.uri, m.orientation, zoomSide);
                 main.post(new Runnable() {
                     @Override
                     public void run() {
