@@ -1,0 +1,491 @@
+<title>CHM 갤러리 미리보기</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap">
+<style>
+  :root {
+    --page: #e9e6ea;
+    --page-ink: #2a2530;
+    --page-sub: #6c6573;
+    --frame: #1b1a1e;
+    --bg: #f7f7f7;
+    --ink: #111111;
+    --sub: #7a7a7a;
+    --accent: #3e91ff;
+    --cell: #e6e6e6;
+    --line: #e2e2e2;
+    --pink-a: #ff7a93;
+    --pink-b: #e8264f;
+    --font: "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) { color-scheme: dark; --page: #17151a; --page-ink: #efeaf2; --page-sub: #a59dac; --frame: #000; }
+  }
+  :root[data-theme="dark"] { color-scheme: dark; --page: #17151a; --page-ink: #efeaf2; --page-sub: #a59dac; --frame: #000; }
+
+  html, body { height: 100%; }
+  body { background: var(--page); color: var(--page-ink); font-family: var(--font); padding: 0 16px; box-sizing: border-box; }
+  .stage { min-height: 100%; box-sizing: border-box; display: flex; gap: 48px; align-items: center; justify-content: center; padding-block: 28px; flex-wrap: wrap; }
+
+  .side { max-width: 320px; display: flex; flex-direction: column; gap: 18px; }
+  .appid { display: flex; gap: 14px; align-items: center; }
+  .appid img { width: 64px; height: 64px; }
+  .appid h1 { margin: 0; font-size: 22px; font-weight: 700; text-wrap: balance; }
+  .appid p { margin: 2px 0 0; color: var(--page-sub); font-size: 13px; }
+  .side h2 { margin: 0 0 6px; font-size: 12px; letter-spacing: .06em; color: var(--page-sub); font-weight: 500; }
+  .side ul { margin: 0; padding-left: 18px; line-height: 1.7; font-size: 14px; }
+  .side .note { font-size: 12.5px; color: var(--page-sub); line-height: 1.6; margin: 0; }
+
+  /* ---------- 휴대폰 ---------- */
+  .phone { width: 380px; max-width: 100%; height: 780px; max-height: calc(100vh - 56px); min-height: 560px; background: var(--frame); border-radius: 44px; padding: 12px; box-sizing: border-box; box-shadow: 0 30px 60px -20px rgba(40, 10, 30, .35); }
+  .screen { position: relative; width: 100%; height: 100%; border-radius: 34px; overflow: hidden; background: var(--bg); color: var(--ink); display: flex; flex-direction: column; font-size: 14px; }
+  .status { height: 30px; flex: none; display: flex; align-items: center; justify-content: space-between; padding: 0 22px; font-size: 12px; font-weight: 500; font-variant-numeric: tabular-nums; }
+
+  .view { position: absolute; inset: 30px 0 0 0; display: flex; flex-direction: column; background: var(--bg); }
+  .header { display: flex; align-items: flex-end; padding: 30px 8px 12px 20px; flex: none; }
+  .header .titles { flex: 1; min-width: 0; }
+  .header h3 { margin: 0; font-size: 30px; font-weight: 700; letter-spacing: -.01em; }
+  .header .subtitle { color: var(--sub); font-size: 12.5px; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .iconbtn { width: 44px; height: 44px; border: 0; background: transparent; border-radius: 50%; display: grid; place-items: center; cursor: pointer; color: inherit; flex: none; }
+  .iconbtn:hover { background: rgba(0,0,0,.06); }
+  .iconbtn:focus-visible, .tab:focus-visible, .cell:focus-visible, .album:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .iconbtn svg { width: 24px; height: 24px; fill: currentColor; }
+
+  .scroll { flex: 1; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
+  .dayhead { padding: 18px 16px 10px; font-weight: 700; font-size: 15px; }
+  .grid { display: grid; gap: 1.5px; }
+  .cell { aspect-ratio: 1; background: var(--cell) center / cover no-repeat; border: 0; padding: 0; cursor: pointer; display: block; width: 100%; }
+
+  .albums { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px 12px; padding: 4px 16px 12px; }
+  .album { border: 0; background: none; padding: 0; text-align: left; cursor: pointer; font: inherit; color: inherit; min-width: 0; }
+  .album .cover { aspect-ratio: 1; border-radius: 14px; background: var(--cell) center / cover no-repeat; }
+  .album .name { font-weight: 700; font-size: 14px; padding: 8px 2px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .album .count { color: var(--sub); font-size: 12.5px; padding: 1px 2px 0; font-variant-numeric: tabular-nums; }
+
+  .tabs { display: flex; flex: none; padding: 4px 0 10px; background: var(--bg); box-shadow: 0 -1px 0 var(--line); }
+  .tab { flex: 1; height: 52px; border: 0; background: none; font: inherit; font-size: 15px; color: var(--sub); cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; }
+  .tab::after { content: ""; width: 20px; height: 3px; border-radius: 2px; background: transparent; }
+  .tab[aria-selected="true"] { color: var(--ink); font-weight: 700; }
+  .tab[aria-selected="true"]::after { background: var(--ink); }
+
+  .subheader { display: flex; align-items: center; gap: 4px; padding: 8px 8px 8px 4px; flex: none; }
+  .subheader .titles { flex: 1; min-width: 0; }
+  .subheader .t { font-size: 20px; font-weight: 700; }
+  .subheader .s { font-size: 12px; color: var(--sub); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  /* ---------- 뷰어 ---------- */
+  .viewer { position: absolute; inset: 0; background: #000; color: #fff; display: flex; align-items: center; justify-content: center; touch-action: pan-y; }
+  .viewer canvas { max-width: 100%; max-height: 100%; transition: transform .16s ease, opacity .16s ease; }
+  .vtop, .vbottom { position: absolute; left: 0; right: 0; transition: opacity .15s; }
+  .vtop { top: 0; padding: 38px 12px 20px 4px; display: flex; align-items: center; background: linear-gradient(#000a, #0000); }
+  .vtop .t { font-weight: 700; font-size: 16px; }
+  .vtop .s { font-size: 12px; opacity: .8; }
+  .vbottom { bottom: 0; padding: 24px 16px 14px; background: linear-gradient(#0000, #000a); }
+  .vbar { display: flex; align-items: center; }
+  .vbar .pos { flex: 1; font-size: 13px; opacity: .8; font-variant-numeric: tabular-nums; }
+  .info { background: #222c; border-radius: 16px; padding: 14px 16px; font-size: 13px; line-height: 1.75; margin-bottom: 10px; }
+  .info b { font-weight: 500; opacity: .7; }
+  .viewer .iconbtn:hover { background: rgba(255,255,255,.12); }
+  .viewer.bars-hidden .vtop, .viewer.bars-hidden .vbottom { opacity: 0; pointer-events: none; }
+  .navzone { position: absolute; top: 25%; bottom: 25%; width: 56px; border: 0; background: none; color: #fff; opacity: 0; cursor: pointer; font-size: 28px; }
+  .navzone:hover, .navzone:focus-visible { opacity: .7; }
+  .navzone.prev { left: 0; } .navzone.next { right: 0; }
+
+  /* ---------- 정렬 대화상자 ---------- */
+  .scrim { position: absolute; inset: 0; background: rgba(0,0,0,.32); display: flex; align-items: flex-end; padding: 12px; z-index: 5; }
+  .dialog { background: #fff; color: var(--ink); border-radius: 26px; padding: 22px 24px 12px; width: 100%; box-sizing: border-box; }
+  .dialog h4 { margin: 0 0 12px; font-size: 18px; }
+  .dialog .sec { color: var(--accent); font-size: 13px; font-weight: 700; margin: 4px 0 4px; }
+  .dialog .sec + .opt, .dialog .opts { margin-bottom: 8px; }
+  .opt { display: flex; gap: 12px; align-items: flex-start; padding: 8px 0; cursor: pointer; }
+  .opt input { accent-color: var(--accent); width: 20px; height: 20px; margin: 1px 0 0; flex: none; }
+  .opt .d { display: block; font-size: 12.5px; color: var(--sub); margin-top: 1px; }
+  .opts { display: flex; gap: 24px; }
+  .dialog .actions { display: flex; justify-content: flex-end; gap: 4px; margin-top: 8px; }
+  .dialog .actions button { border: 0; background: none; font: inherit; font-weight: 700; color: var(--accent); padding: 10px 16px; border-radius: 18px; cursor: pointer; }
+  .dialog .actions button:hover { background: #3e91ff14; }
+
+  .toast { position: absolute; left: 50%; bottom: 84px; transform: translateX(-50%); background: #333d; color: #fff; font-size: 12.5px; padding: 8px 14px; border-radius: 16px; white-space: nowrap; pointer-events: none; }
+
+  @media (max-width: 520px) {
+    body { padding: 0; }
+    .stage { padding-block: 0; gap: 24px; }
+    .phone { width: 100%; height: 100dvh; max-height: none; border-radius: 0; padding: 0; box-shadow: none; }
+    .screen { border-radius: 0; }
+    .side { padding: 0 16px 28px; }
+  }
+  @media (prefers-reduced-motion: reduce) { .viewer canvas, .vtop, .vbottom { transition: none; } }
+</style>
+
+<div class="stage">
+  <div class="phone" aria-label="갤러리 앱 미리보기">
+    <div class="screen" id="screen">
+      <div class="status"><span id="clock">9:41</span><span>5G ▮▮▮ 86%</span></div>
+    </div>
+  </div>
+
+  <aside class="side">
+    <div class="appid">
+      <img id="appicon" alt="앱 아이콘">
+      <div>
+        <h1>갤러리</h1>
+        <p>com.chm.album · v1.0 · Android 6.0 이상</p>
+      </div>
+    </div>
+    <div>
+      <h2>미리보기에서 해볼 것</h2>
+      <ul>
+        <li>하단 <b>사진 / 앨범</b> 탭 전환</li>
+        <li>오른쪽 위 정렬 버튼 → <b>촬영 날짜</b> ↔ <b>기기에 저장된 날짜</b></li>
+        <li>폴더를 눌러 폴더 안 사진 보기</li>
+        <li>사진을 눌러 크게 보기, ⓘ로 두 날짜 비교</li>
+        <li>Ctrl + 휠 또는 핀치로 열 개수 변경</li>
+      </ul>
+    </div>
+    <p class="note">사진은 예시로 만든 이미지입니다. "여행 2025"는 예전 폰에서 옮긴 사진이라 촬영 날짜와 저장 날짜가 크게 다르고, 카카오톡 사진 일부는 메타데이터가 없어 파일 날짜로 대체됩니다. 정렬 기준을 바꿔 보면 차이가 보입니다.</p>
+  </aside>
+</div>
+
+<script>
+(function () {
+  "use strict";
+  var DAY = 86400000;
+  var now = new Date();
+  var NOW = now.getTime();
+
+  // ---------- 설정 (앱의 SharedPreferences 대신) ----------
+  var prefs = { basis: "taken", desc: true, columns: 4 };
+  try { var saved = JSON.parse(localStorage.getItem("chm-gallery-prefs") || "null"); if (saved) prefs = Object.assign(prefs, saved); } catch (e) {}
+  function savePrefs() { try { localStorage.setItem("chm-gallery-prefs", JSON.stringify(prefs)); } catch (e) {} }
+  function label() { return (prefs.basis === "taken" ? "촬영 날짜(메타데이터)" : "기기에 저장된 날짜") + " · " + (prefs.desc ? "최신순" : "오래된순"); }
+
+  // ---------- 예시 사진 ----------
+  var seed = 20260927;
+  function rnd() { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; }
+  function pick(a) { return a[Math.floor(rnd() * a.length)]; }
+  function at(daysAgo, hour, min) { var d = new Date(NOW - daysAgo * DAY); d.setHours(hour, min || 0, Math.floor(rnd() * 60), 0); return d.getTime(); }
+  function date(y, m, d, h, mi) { return new Date(y, m - 1, d, h, mi || 0).getTime(); }
+
+  var items = [];
+  var nextId = 1;
+  function add(bucket, scene, taken, added, name) {
+    items.push({ id: nextId++, bucket: bucket, scene: scene, taken: taken, added: added, name: name, w: scene === "shot" ? 1080 : 4000, h: scene === "shot" ? 2340 : 3000, size: Math.round((scene === "shot" ? 0.4 : 2.2 + rnd() * 2.5) * 1048576), hue: Math.floor(rnd() * 360), s: rnd() });
+  }
+  function camName(t) { var d = new Date(t); function p(n) { return String(n).padStart(2, "0"); } return d.getFullYear() + p(d.getMonth() + 1) + p(d.getDate()) + "_" + p(d.getHours()) + p(d.getMinutes()) + p(d.getSeconds()) + ".jpg"; }
+
+  var camScenes = ["sunset", "sea", "mountain", "city", "flower", "forest", "food", "sky"];
+  var camDays = [0, 0, 0, 1, 1, 2, 4, 4, 4, 5, 7, 7, 9, 9, 9, 9, 11, 12, 15, 15, 18, 20, 20, 23, 26, 26, 30];
+  camDays.forEach(function (d) { var t = at(d, 8 + Math.floor(rnd() * 13), Math.floor(rnd() * 60)); add("카메라", pick(camScenes), t, t + 2000, camName(t)); });
+
+  // 예전 폰에서 옮긴 사진: 촬영은 2025년 7월, 기기 저장은 3일 전
+  var moved = at(3, 22, 14);
+  [[7, 12, 10], [7, 12, 15], [7, 13, 9], [7, 13, 18], [7, 14, 7], [7, 14, 19], [7, 15, 11], [8, 2, 16], [8, 2, 20], [8, 3, 10], [8, 3, 13], [8, 3, 19]].forEach(function (x, i) {
+    var t = date(2025, x[0], x[1], x[2], Math.floor(rnd() * 60)); add("여행 2025", pick(["sea", "sunset", "mountain", "sky", "food"]), t, moved + i * 1000, camName(t));
+  });
+
+  // 카카오톡으로 받은 사진: 일부는 메타데이터가 없음
+  [1, 2, 6, 6, 8, 13, 17, 22, 28].forEach(function (d, i) {
+    var recv = at(d, 10 + Math.floor(rnd() * 12), Math.floor(rnd() * 60));
+    var taken = i % 3 === 0 ? 0 : recv - Math.floor(1 + rnd() * 40) * DAY;
+    add("KakaoTalk", pick(["food", "flower", "city", "sky", "forest"]), taken, recv, "KakaoTalk_" + camName(recv).replace(".jpg", "_" + String(i).padStart(3, "0") + ".jpg"));
+  });
+
+  // 스크린샷: 촬영 = 저장
+  [0, 2, 5, 9, 14, 19, 25].forEach(function (d) { var t = at(d, 9 + Math.floor(rnd() * 14), Math.floor(rnd() * 60)); add("스크린샷", "shot", t, t, "Screenshot_" + camName(t).replace(".jpg", ".png")); });
+
+  // 다운로드: 오래전에 찍힌 사진을 최근에 받음
+  [[2019, 5, 3], [2021, 10, 21], [2022, 1, 8], [2023, 6, 30], [2024, 12, 24]].forEach(function (x, i) {
+    var t = date(x[0], x[1], x[2], 14, 0); add("다운로드", pick(["mountain", "forest", "sea", "city"]), t, at([1, 4, 10, 16, 27][i], 20, 5 + i), "download_" + (1000 + i * 37) + ".jpg");
+  });
+
+  function time(m, basis) { basis = basis || prefs.basis; if (basis === "taken") return m.taken > 0 ? m.taken : m.added; return m.added; }
+  function sorted(list) { return list.slice().sort(function (a, b) { var r = time(a) - time(b) || a.id - b.id; return prefs.desc ? -r : r; }); }
+
+  // ---------- 장면 그리기 ----------
+  function paint(cv, m) {
+    var W = cv.width, H = cv.height, g = cv.getContext("2d");
+    var s = m.s, h = m.hue;
+    seed = m.id * 7919;
+    function lin(y0, y1, stops) { var gr = g.createLinearGradient(0, y0, 0, y1); stops.forEach(function (st, i) { gr.addColorStop(i / (stops.length - 1), st); }); return gr; }
+    function ridge(base, amp, color, rough) { g.fillStyle = color; g.beginPath(); g.moveTo(0, H); for (var x = 0; x <= W; x += W / 24) { g.lineTo(x, base - amp * (0.5 + 0.5 * Math.sin(x / W * (3 + rough * 4) + s * 9)) - rnd() * amp * 0.25); } g.lineTo(W, H); g.fill(); }
+    switch (m.scene) {
+      case "sunset":
+        g.fillStyle = lin(0, H, ["#2b2d6e", "#c0487a", "#ff9a5a", "#ffd27a"]); g.fillRect(0, 0, W, H);
+        g.fillStyle = "#fff3c4"; g.beginPath(); g.arc(W * (0.3 + s * 0.4), H * 0.66, W * 0.09, 0, 7); g.fill();
+        g.fillStyle = lin(H * 0.68, H, ["#6a2a55", "#1f1437"]); g.fillRect(0, H * 0.68, W, H);
+        for (var i = 0; i < 14; i++) { g.fillStyle = "rgba(255,200,140," + (0.15 + rnd() * 0.3) + ")"; g.fillRect(W * (0.25 + s * 0.4) + (rnd() - 0.5) * W * 0.2, H * (0.7 + i * 0.02), W * (0.05 + rnd() * 0.1), 2); }
+        break;
+      case "sea":
+        g.fillStyle = lin(0, H * 0.55, ["#6fb6ff", "#cfe9ff"]); g.fillRect(0, 0, W, H);
+        g.fillStyle = lin(H * 0.55, H, ["#1c7fc2", "#0f4f86"]); g.fillRect(0, H * 0.55, W, H);
+        g.fillStyle = "#f3e2b8"; g.beginPath(); g.moveTo(0, H); g.lineTo(0, H * 0.82); g.quadraticCurveTo(W * 0.5, H * (0.78 + s * 0.1), W, H * 0.92); g.lineTo(W, H); g.fill();
+        g.fillStyle = "rgba(255,255,255,.8)"; for (var j = 0; j < 4; j++) { g.beginPath(); g.ellipse(W * rnd(), H * (0.1 + rnd() * 0.25), W * 0.12, H * 0.035, 0, 0, 7); g.fill(); }
+        break;
+      case "mountain":
+        g.fillStyle = lin(0, H, ["#9ec9f0", "#e8f2fb"]); g.fillRect(0, 0, W, H);
+        ridge(H * 0.55, H * 0.3, "#8aa3c2", 0.2); ridge(H * 0.7, H * 0.25, "#4f7a64", 0.5); ridge(H * 0.86, H * 0.18, "#2f5443", 0.8);
+        break;
+      case "city":
+        g.fillStyle = lin(0, H, ["#0c1030", "#2a2360", "#5b3a7a"]); g.fillRect(0, 0, W, H);
+        for (var b = 0; b < 16; b++) { var bw = W * (0.05 + rnd() * 0.08), bx = rnd() * W, bh = H * (0.25 + rnd() * 0.5); g.fillStyle = "hsl(" + (230 + rnd() * 30) + ",30%," + (8 + rnd() * 10) + "%)"; g.fillRect(bx, H - bh, bw, bh); g.fillStyle = "rgba(255,214,120,.8)"; for (var wy = H - bh + 6; wy < H - 6; wy += 9) for (var wx = bx + 4; wx < bx + bw - 4; wx += 7) if (rnd() < 0.35) g.fillRect(wx, wy, 3, 4); }
+        break;
+      case "flower":
+        g.fillStyle = lin(0, H, ["hsl(" + (90 + s * 40) + ",40%,70%)", "hsl(" + (110 + s * 30) + ",45%,35%)"]); g.fillRect(0, 0, W, H);
+        for (var f = 0; f < 7; f++) { var fx = W * rnd(), fy = H * (0.2 + rnd() * 0.7), fr = W * (0.05 + rnd() * 0.07), fh = (h + f * 12) % 360; for (var p = 0; p < 5; p++) { g.fillStyle = "hsl(" + fh + ",75%,72%)"; g.beginPath(); g.ellipse(fx + Math.cos(p * 1.256) * fr, fy + Math.sin(p * 1.256) * fr, fr * 0.8, fr * 0.5, p * 1.256, 0, 7); g.fill(); } g.fillStyle = "#ffd64a"; g.beginPath(); g.arc(fx, fy, fr * 0.4, 0, 7); g.fill(); }
+        break;
+      case "forest":
+        g.fillStyle = lin(0, H, ["#d6ecd2", "#86b58a"]); g.fillRect(0, 0, W, H);
+        for (var t = 0; t < 22; t++) { var tx = rnd() * W, ty = H * (0.45 + rnd() * 0.55), th = H * (0.25 + rnd() * 0.3); g.fillStyle = "hsl(" + (120 + rnd() * 40) + ",35%," + (18 + rnd() * 18) + "%)"; g.beginPath(); g.moveTo(tx, ty - th); g.lineTo(tx - th * 0.3, ty); g.lineTo(tx + th * 0.3, ty); g.fill(); }
+        break;
+      case "food":
+        g.fillStyle = "hsl(" + (25 + s * 20) + ",35%,72%)"; g.fillRect(0, 0, W, H);
+        g.fillStyle = "#fafafa"; g.beginPath(); g.arc(W / 2, H / 2, Math.min(W, H) * 0.38, 0, 7); g.fill();
+        g.fillStyle = "hsl(" + (h % 60) + ",70%,50%)"; g.beginPath(); g.arc(W / 2, H / 2, Math.min(W, H) * 0.28, 0, 7); g.fill();
+        for (var k = 0; k < 18; k++) { g.fillStyle = pick(["#3f8f3a", "#f1d04b", "#fff4e0", "#8b3a1c"]); g.beginPath(); g.arc(W / 2 + (rnd() - 0.5) * W * 0.4, H / 2 + (rnd() - 0.5) * H * 0.4, W * 0.025, 0, 7); g.fill(); }
+        break;
+      case "sky":
+        g.fillStyle = lin(0, H, ["hsl(" + (200 + s * 20) + ",80%,60%)", "hsl(" + (190 + s * 10) + ",70%,88%)"]); g.fillRect(0, 0, W, H);
+        g.fillStyle = "rgba(255,255,255,.9)"; for (var c = 0; c < 6; c++) { var cx = W * rnd(), cy = H * rnd() * 0.8; for (var q = 0; q < 4; q++) { g.beginPath(); g.arc(cx + q * W * 0.05, cy + Math.sin(q) * H * 0.02, W * (0.05 + rnd() * 0.04), 0, 7); g.fill(); } }
+        break;
+      case "shot":
+        g.fillStyle = "#ffffff"; g.fillRect(0, 0, W, H);
+        g.fillStyle = "hsl(" + h + ",60%,55%)"; g.fillRect(0, 0, W, H * 0.09);
+        for (var r = 0; r < 9; r++) { var y = H * (0.13 + r * 0.095); g.fillStyle = "hsl(" + ((h + r * 30) % 360) + ",50%,80%)"; g.beginPath(); g.arc(W * 0.14, y + H * 0.03, W * 0.07, 0, 7); g.fill(); g.fillStyle = "#d8d8d8"; g.fillRect(W * 0.27, y + H * 0.012, W * (0.35 + rnd() * 0.3), H * 0.016); g.fillStyle = "#ececec"; g.fillRect(W * 0.27, y + H * 0.04, W * (0.25 + rnd() * 0.4), H * 0.012); }
+        break;
+    }
+  }
+  var thumbCache = {};
+  function thumb(m) {
+    if (thumbCache[m.id]) return thumbCache[m.id];
+    var cv = document.createElement("canvas");
+    var portrait = m.scene === "shot";
+    cv.width = portrait ? 120 : 220; cv.height = portrait ? 260 : 165;
+    paint(cv, m);
+    return (thumbCache[m.id] = cv.toDataURL("image/jpeg", 0.82));
+  }
+
+  // ---------- 날짜 표시 ----------
+  var WD = ["일요일", "월요일", "화요일", "수요일", "목요일", "금요일", "토요일"];
+  function dayKey(t) { var d = new Date(t); return d.getFullYear() * 1000 + Math.floor((d - new Date(d.getFullYear(), 0, 1)) / DAY); }
+  function dayLabel(t) {
+    var d = new Date(t);
+    if (dayKey(t) === dayKey(NOW)) return "오늘";
+    if (dayKey(t) === dayKey(NOW - DAY)) return "어제";
+    var s = (d.getMonth() + 1) + "월 " + d.getDate() + "일 " + WD[d.getDay()];
+    return d.getFullYear() === now.getFullYear() ? s : d.getFullYear() + "년 " + s;
+  }
+  function hm(t) { var d = new Date(t), h = d.getHours(); return (h < 12 ? "오전 " : "오후 ") + ((h % 12) || 12) + ":" + String(d.getMinutes()).padStart(2, "0"); }
+  function full(t) { if (!t) return "정보 없음"; var d = new Date(t); return d.getFullYear() + "년 " + (d.getMonth() + 1) + "월 " + d.getDate() + "일 (" + WD[d.getDay()][0] + ") " + hm(t); }
+
+  // ---------- 화면 ----------
+  var screen = document.getElementById("screen");
+  var ICON = {
+    sort: '<svg viewBox="0 0 24 24"><path d="M3 6h18v2H3zM6 11h12v2H6zM10 16h4v2h-4z"/></svg>',
+    back: '<svg viewBox="0 0 24 24"><path d="M15.41 7.41 14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>',
+    info: '<svg viewBox="0 0 24 24"><path d="M11 7h2v2h-2zm0 4h2v6h-2zm1-9C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/></svg>'
+  };
+  function el(tag, cls, html) { var e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; }
+  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
+
+  var state = { tab: "photos", album: null, viewer: null };
+
+  var main = el("div", "view");
+  var header = el("div", "header");
+  var titles = el("div", "titles");
+  var h3 = el("h3", null, "사진");
+  var subtitle = el("div", "subtitle");
+  titles.append(h3, subtitle);
+  var sortBtn = el("button", "iconbtn", ICON.sort); sortBtn.setAttribute("aria-label", "정렬"); sortBtn.id = "sort-main";
+  header.append(titles, sortBtn);
+  var body = el("div", "scroll"); body.id = "main-scroll";
+  var tabs = el("div", "tabs"); tabs.setAttribute("role", "tablist");
+  var tabPhotos = el("button", "tab", "사진"), tabAlbums = el("button", "tab", "앨범");
+  [tabPhotos, tabAlbums].forEach(function (t) { t.setAttribute("role", "tab"); });
+  tabPhotos.id = "tab-photos"; tabAlbums.id = "tab-albums";
+  tabs.append(tabPhotos, tabAlbums);
+  main.append(header, body, tabs);
+  screen.append(main);
+
+  function albums(list) {
+    var map = {}, out = [];
+    list.forEach(function (m) { if (!map[m.bucket]) { map[m.bucket] = { name: m.bucket, items: [] }; out.push(map[m.bucket]); } map[m.bucket].items.push(m); });
+    function latest(a) { return Math.max.apply(null, a.items.map(function (m) { return time(m); })); }
+    out.sort(function (a, b) { if ((a.name === "카메라") !== (b.name === "카메라")) return a.name === "카메라" ? -1 : 1; return latest(b) - latest(a); });
+    return out;
+  }
+
+  function photoGrid(list, container) {
+    container.textContent = "";
+    var groups = [], cur = null;
+    list.forEach(function (m, i) { var k = dayKey(time(m)); if (!cur || cur.key !== k) { cur = { key: k, title: dayLabel(time(m)), items: [] }; groups.push(cur); } cur.items.push(i); });
+    groups.forEach(function (gr) {
+      container.append(el("div", "dayhead", esc(gr.title)));
+      var grid = el("div", "grid"); grid.style.gridTemplateColumns = "repeat(" + prefs.columns + ", 1fr)";
+      gr.items.forEach(function (i) {
+        var m = list[i], c = el("button", "cell");
+        c.style.backgroundImage = "url(" + thumb(m) + ")";
+        c.setAttribute("aria-label", m.name);
+        c.onclick = function () { openViewer(list, i); };
+        grid.append(c);
+      });
+      container.append(grid);
+    });
+  }
+
+  function renderMain() {
+    var list = sorted(items);
+    tabPhotos.setAttribute("aria-selected", state.tab === "photos");
+    tabAlbums.setAttribute("aria-selected", state.tab === "albums");
+    h3.textContent = state.tab === "photos" ? "사진" : "앨범";
+    if (state.tab === "photos") {
+      subtitle.textContent = "사진 " + list.length + "장 · " + label();
+      photoGrid(list, body);
+    } else {
+      var al = albums(list);
+      subtitle.textContent = "앨범 " + al.length + "개 · " + label();
+      body.textContent = "";
+      var wrap = el("div", "albums");
+      al.forEach(function (a) {
+        var b = el("button", "album");
+        b.innerHTML = '<div class="cover"></div><div class="name">' + esc(a.name) + '</div><div class="count">' + a.items.length + "</div>";
+        b.firstChild.style.backgroundImage = "url(" + thumb(a.items[0]) + ")";
+        b.onclick = function () { openAlbum(a.name); };
+        wrap.append(b);
+      });
+      body.append(wrap);
+    }
+  }
+
+  tabPhotos.onclick = function () { if (state.tab === "photos") body.scrollTo({ top: 0, behavior: "smooth" }); else { state.tab = "photos"; body.scrollTop = 0; renderMain(); } };
+  tabAlbums.onclick = function () { if (state.tab === "albums") body.scrollTo({ top: 0, behavior: "smooth" }); else { state.tab = "albums"; body.scrollTop = 0; renderMain(); } };
+  sortBtn.onclick = function () { openSort(); };
+
+  // ---------- 폴더 화면 ----------
+  var albumView = null;
+  function openAlbum(name) {
+    state.album = name;
+    albumView = el("div", "view");
+    var head = el("div", "subheader");
+    var back = el("button", "iconbtn", ICON.back); back.setAttribute("aria-label", "뒤로");
+    var t = el("div", "titles", '<div class="t">' + esc(name) + '</div><div class="s"></div>');
+    var sb = el("button", "iconbtn", ICON.sort); sb.setAttribute("aria-label", "정렬");
+    head.append(back, t, sb);
+    var sc = el("div", "scroll"); sc.id = "album-scroll";
+    albumView.append(head, sc);
+    screen.append(albumView);
+    back.onclick = closeAlbum;
+    sb.onclick = function () { openSort(); };
+    attachZoom(sc);
+    renderAlbum();
+    back.focus();
+  }
+  function renderAlbum() {
+    if (!albumView) return;
+    var list = sorted(items.filter(function (m) { return m.bucket === state.album; }));
+    albumView.querySelector(".s").textContent = "사진 " + list.length + "장 · " + label();
+    photoGrid(list, albumView.querySelector(".scroll"));
+  }
+  function closeAlbum() { if (albumView) albumView.remove(); albumView = null; state.album = null; renderMain(); }
+
+  // ---------- 정렬 대화상자 ----------
+  function openSort() {
+    var scrim = el("div", "scrim");
+    scrim.innerHTML =
+      '<div class="dialog" role="dialog" aria-modal="true" aria-labelledby="sort-title">' +
+      '<h4 id="sort-title">정렬</h4>' +
+      '<div class="sec">정렬 기준</div>' +
+      '<label class="opt"><input type="radio" name="basis" id="basis-taken" value="taken"><span>촬영 날짜<span class="d">사진 메타데이터(EXIF)에 기록된 날짜</span></span></label>' +
+      '<label class="opt"><input type="radio" name="basis" id="basis-added" value="added"><span>기기에 저장된 날짜<span class="d">이 기기에 파일이 만들어진(추가된) 날짜</span></span></label>' +
+      '<div class="sec" style="margin-top:10px">정렬 순서</div>' +
+      '<div class="opts"><label class="opt"><input type="radio" name="dir" id="dir-desc" value="desc"><span>최신순</span></label>' +
+      '<label class="opt"><input type="radio" name="dir" id="dir-asc" value="asc"><span>오래된순</span></label></div>' +
+      '<div class="actions"><button type="button" data-a="cancel">취소</button><button type="button" data-a="ok">적용</button></div></div>';
+    screen.append(scrim);
+    scrim.querySelector("#basis-" + prefs.basis).checked = true;
+    scrim.querySelector("#dir-" + (prefs.desc ? "desc" : "asc")).checked = true;
+    scrim.querySelector("#basis-" + prefs.basis).focus();
+    function close() { scrim.remove(); }
+    scrim.onclick = function (e) { if (e.target === scrim) close(); };
+    scrim.querySelector('[data-a="cancel"]').onclick = close;
+    scrim.querySelector('[data-a="ok"]').onclick = function () {
+      prefs.basis = scrim.querySelector('input[name="basis"]:checked').value;
+      prefs.desc = scrim.querySelector('input[name="dir"]:checked').value === "desc";
+      savePrefs(); close(); renderMain(); renderAlbum();
+      toast(label());
+    };
+  }
+
+  var toastEl = null, toastTimer = 0;
+  function toast(msg) {
+    if (!toastEl) { toastEl = el("div", "toast"); screen.append(toastEl); }
+    toastEl.textContent = msg; toastEl.hidden = false;
+    clearTimeout(toastTimer); toastTimer = setTimeout(function () { toastEl.hidden = true; }, 1600);
+  }
+
+  // ---------- 뷰어 ----------
+  function openViewer(list, index) {
+    var v = el("div", "viewer");
+    var cv = document.createElement("canvas");
+    v.innerHTML =
+      '<div class="vtop"><button class="iconbtn" aria-label="뒤로" data-a="back">' + ICON.back + '</button><div><div class="t"></div><div class="s"></div></div></div>' +
+      '<button class="navzone prev" aria-label="이전 사진">‹</button><button class="navzone next" aria-label="다음 사진">›</button>' +
+      '<div class="vbottom"><div class="info" hidden></div><div class="vbar"><div class="pos"></div><button class="iconbtn" aria-label="상세 정보" data-a="info">' + ICON.info + "</button></div></div>";
+    v.prepend(cv);
+    screen.append(v);
+    var info = v.querySelector(".info");
+    function show(i) {
+      index = i;
+      var m = list[i], t = time(m), portrait = m.scene === "shot";
+      cv.width = portrait ? 540 : 800; cv.height = portrait ? 1170 : 600;
+      paint(cv, m);
+      v.querySelector(".t").textContent = dayLabel(t);
+      v.querySelector(".s").textContent = hm(t) + " · " + (prefs.basis === "taken" ? "촬영 날짜" : "기기 저장 날짜");
+      v.querySelector(".pos").textContent = (i + 1) + " / " + list.length + "   " + m.bucket;
+      info.innerHTML = esc(m.name) + "<br><b>촬영 날짜 (메타데이터)</b> " + esc(full(m.taken)) + "<br><b>기기에 저장된 날짜</b> " + esc(full(m.added)) +
+        "<br><b>폴더</b> " + esc(m.bucket) + "<br><b>해상도</b> " + m.w + " × " + m.h + "&nbsp;&nbsp; <b>크기</b> " + (m.size / 1048576).toFixed(1) + " MB";
+    }
+    function move(d) {
+      var n = index + d;
+      if (n < 0 || n >= list.length) { cv.style.transform = "translateX(" + (-d * 24) + "px)"; setTimeout(function () { cv.style.transform = ""; }, 120); return; }
+      cv.style.transform = "translateX(" + (-d * 60) + "%)"; cv.style.opacity = ".3";
+      setTimeout(function () { show(n); cv.style.transition = "none"; cv.style.transform = "translateX(" + (d * 60) + "%)"; cv.getBoundingClientRect(); cv.style.transition = ""; cv.style.transform = ""; cv.style.opacity = ""; }, 150);
+    }
+    function close() { document.removeEventListener("keydown", key); v.remove(); }
+    function key(e) { if (e.key === "ArrowRight") move(1); else if (e.key === "ArrowLeft") move(-1); else if (e.key === "Escape") close(); }
+    document.addEventListener("keydown", key);
+    v.querySelector('[data-a="back"]').onclick = close;
+    v.querySelector('[data-a="info"]').onclick = function () { info.hidden = !info.hidden; };
+    v.querySelector(".prev").onclick = function (e) { e.stopPropagation(); move(-1); };
+    v.querySelector(".next").onclick = function (e) { e.stopPropagation(); move(1); };
+    cv.onclick = function () { v.classList.toggle("bars-hidden"); };
+    var sx = 0, sy = 0;
+    v.addEventListener("touchstart", function (e) { sx = e.touches[0].clientX; sy = e.touches[0].clientY; }, { passive: true });
+    v.addEventListener("touchend", function (e) { var dx = e.changedTouches[0].clientX - sx, dy = e.changedTouches[0].clientY - sy; if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) move(dx < 0 ? 1 : -1); else if (dy > 120 && Math.abs(dy) > Math.abs(dx) * 2) close(); });
+    show(index);
+    v.querySelector('[data-a="back"]').focus();
+  }
+
+  // ---------- 열 개수 변경 (Ctrl+휠 / 핀치) ----------
+  function setColumns(n) { n = Math.max(2, Math.min(7, n)); if (n === prefs.columns) return; prefs.columns = n; savePrefs(); renderMain(); renderAlbum(); toast("한 줄에 " + n + "장"); }
+  function attachZoom(node) {
+    node.addEventListener("wheel", function (e) { if (!e.ctrlKey || (state.tab !== "photos" && node === body)) return; e.preventDefault(); setColumns(prefs.columns + (e.deltaY > 0 ? 1 : -1)); }, { passive: false });
+    var d0 = 0, fired = false;
+    function dist(t) { return Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY); }
+    node.addEventListener("touchstart", function (e) { if (e.touches.length === 2) { d0 = dist(e.touches); fired = false; } }, { passive: true });
+    node.addEventListener("touchmove", function (e) {
+      if (e.touches.length !== 2 || !d0 || fired || (state.tab !== "photos" && node === body)) return;
+      var r = dist(e.touches) / d0;
+      if (r > 1.25) { fired = true; setColumns(prefs.columns - 1); } else if (r < 0.8) { fired = true; setColumns(prefs.columns + 1); }
+    }, { passive: true });
+  }
+  attachZoom(body);
+
+  // ---------- 앱 아이콘 & 시계 ----------
+  var iconSvg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 108 108"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FF7A93"/><stop offset="1" stop-color="#E8264F"/></linearGradient></defs><path d="M54 4C88 4 104 20 104 54S88 104 54 104 4 88 4 54 20 4 54 4Z" fill="url(#g)"/><g transform="translate(54 54) scale(1.25)"><g fill="#fff" fill-opacity=".78">' +
+    [0, 72, 144, 216, 288].map(function (r) { return '<ellipse cx="0" cy="-12" rx="9.5" ry="15" transform="rotate(' + r + ')"/>'; }).join("") + '</g><circle r="5.2" fill="#fff"/></g></svg>';
+  document.getElementById("appicon").src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(iconSvg);
+  function tick() { var d = new Date(); document.getElementById("clock").textContent = d.getHours() + ":" + String(d.getMinutes()).padStart(2, "0"); }
+  tick(); setInterval(tick, 30000);
+
+  renderMain();
+})();
+</script>
