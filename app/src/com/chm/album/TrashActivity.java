@@ -125,7 +125,7 @@ public class TrashActivity extends Activity implements TrashController.Callback 
         list.setSelector(android.R.color.transparent);
         adapter = new PhotoGridAdapter(this, false, 4, new PhotoGridAdapter.Listener() {
             @Override
-            public void onItemClick(List<MediaItem> all, int index) {
+            public void onItemClick(List<MediaItem> all, int index, View cell) {
                 // 휴지통에서는 눌러서 바로 선택한다
                 adapter.toggleItem(all.get(index));
             }
@@ -143,7 +143,7 @@ public class TrashActivity extends Activity implements TrashController.Callback 
                 return days + "일";
             }
         });
-        list.setAdapter(adapter);
+        adapter.attachTo(list);
         content.addView(list, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.MATCH_PARENT));
         emptyText = Ui.text(this, "휴지통이 비어 있습니다", 16, Ui.SUBTEXT, false);

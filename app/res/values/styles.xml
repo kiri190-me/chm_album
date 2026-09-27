@@ -16,4 +16,11 @@
         <item name="android:navigationBarColor">#FF000000</item>
         <item name="android:windowBackground">@color/black</item>
     </style>
+
+    <!-- 보기 화면: 뒤의 목록이 비쳐 보여서, 아래로 끌어 닫을 때 사진이 목록 칸으로 줄어드는 모습이 보인다 -->
+    <style name="ViewerTranslucentTheme" parent="ViewerTheme">
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowAnimationStyle">@null</item>
+    </style>
 </resources>

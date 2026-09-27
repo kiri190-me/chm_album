@@ -227,8 +227,8 @@ public class MainActivity extends Activity implements TrashController.Callback {
 
         PhotoGridAdapter.Listener gridListener = new PhotoGridAdapter.Listener() {
             @Override
-            public void onItemClick(List<MediaItem> items, int index) {
-                ViewerActivity.open(MainActivity.this, items, index);
+            public void onItemClick(List<MediaItem> items, int index, View cell) {
+                ViewerActivity.open(MainActivity.this, items, index, cell, currentGridAdapter());
             }
 
             @Override
@@ -327,7 +327,7 @@ public class MainActivity extends Activity implements TrashController.Callback {
         list.setFastScrollEnabled(true);
         list.setClipToPadding(false);
         list.setPadding(0, 0, 0, Ui.dp(this, 8));
-        list.setAdapter(adapter);
+        adapter.attachTo(list);
         list.setOnPinchListener(new PinchListView.OnPinchListener() {
             @Override
             public void onPinch(boolean zoomIn) {

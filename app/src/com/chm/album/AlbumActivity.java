@@ -112,8 +112,8 @@ public class AlbumActivity extends Activity implements TrashController.Callback 
         list.setFastScrollEnabled(true);
         adapter = new PhotoGridAdapter(this, true, prefs.columns(), new PhotoGridAdapter.Listener() {
             @Override
-            public void onItemClick(List<MediaItem> items, int index) {
-                ViewerActivity.open(AlbumActivity.this, items, index);
+            public void onItemClick(List<MediaItem> items, int index, View cell) {
+                ViewerActivity.open(AlbumActivity.this, items, index, cell, adapter);
             }
 
             @Override
@@ -121,7 +121,7 @@ public class AlbumActivity extends Activity implements TrashController.Callback 
                 updateHeader();
             }
         });
-        list.setAdapter(adapter);
+        adapter.attachTo(list);
         list.setOnPinchListener(new PinchListView.OnPinchListener() {
             @Override
             public void onPinch(boolean zoomIn) {

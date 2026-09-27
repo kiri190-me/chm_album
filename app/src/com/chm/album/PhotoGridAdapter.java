@@ -22,8 +22,8 @@ import java.util.Set;
 public class PhotoGridAdapter extends BaseAdapter {
 
     public interface Listener {
-        /** 선택 모드가 아닐 때 항목을 누름 */
-        void onItemClick(List<MediaItem> items, int index);
+        /** 선택 모드가 아닐 때 항목을 누름. cell 은 눌린 칸 (열기 애니메이션의 시작 위치). */
+        void onItemClick(List<MediaItem> items, int index, View cell);
 
         /** 선택 모드 진입/해제 또는 선택 개수 변경 */
         void onSelectionChanged(boolean selectionMode, int count);
@@ -58,6 +58,13 @@ public class PhotoGridAdapter extends BaseAdapter {
     private final Set<Long> selected = new HashSet<>();
     private boolean selectionMode;
     private Badger badger;
+
+    // 길게 눌러 끌기 선택
+    private PinchListView host;
+    private int dragAnchor = -1;
+    private boolean dragSelects;
+    private Set<Long> dragBaseline;
+    private int dragLast = -1;
     private final int gap;
     private List<MediaItem> items = new ArrayList<>();
     private final List<Row> rows = new ArrayList<>();
@@ -85,6 +92,97 @@ public class PhotoGridAdapter extends BaseAdapter {
             listener.onSelectionChanged(selectionMode, selected.size());
         }
         rebuild();
+    }
+
+    /** 목록에 연결: 길게 누른 뒤 끌어서 여러 항목 선택, 보기 화면과 위치 맞추기에 쓴다. */
+    public void attachTo(PinchListView list) {
+        host = list;
+        list.setAdapter(this);
+        list.setDragSelectCallback(new PinchListView.DragSelectCallback() {
+            @Override
+            public int itemIndexAt(int position, View row, float x) {
+                if (position < 0 || position >= rows.size()) return -1;
+                Row r = rows.get(position);
+                if (r.type != TYPE_ROW) return -1;
+                int col = (int) (x / Math.max(1f, row.getWidth() / (float) columns));
+                return Math.max(r.start, Math.min(r.end - 1, r.start + col));
+            }
+
+            @Override
+            public void onDragTo(int index) {
+                dragTo(index);
+            }
+        });
+    }
+
+    /** 길게 누른 항목부터 끌기 선택을 시작한다. 처음 항목이 선택되면 끌린 범위도 선택, 해제되면 범위도 해제. */
+    private void beginDrag(int anchor) {
+        MediaItem m = items.get(anchor);
+        dragSelects = !selected.contains(m.key());
+        dragBaseline = new HashSet<>(selected);
+        dragAnchor = anchor;
+        dragLast = -1;
+        selectionMode = true;
+        dragTo(anchor);
+        if (host != null) host.startDragSelect();
+    }
+
+    private void dragTo(int index) {
+        if (dragAnchor < 0 || index < 0 || index >= items.size() || index == dragLast) return;
+        dragLast = index;
+        selected.clear();
+        selected.addAll(dragBaseline);
+        int lo = Math.min(dragAnchor, index);
+        int hi = Math.max(dragAnchor, index);
+        for (int i = lo; i <= hi; i++) {
+            long k = items.get(i).key();
+            if (dragSelects) selected.add(k);
+            else selected.remove(k);
+        }
+        notifyDataSetChanged();
+        listener.onSelectionChanged(true, selected.size());
+    }
+
+    /** 항목이 들어 있는 목록 줄 위치와 열. 없으면 null. */
+    private int[] locate(long key) {
+        for (int p = 0; p < rows.size(); p++) {
+            Row r = rows.get(p);
+            if (r.type != TYPE_ROW) continue;
+            for (int i = r.start; i < r.end; i++) {
+                if (items.get(i).key() == key) return new int[]{p, i - r.start};
+            }
+        }
+        return null;
+    }
+
+    /** 보기 화면에서 넘긴 사진이 목록에서도 보이도록 스크롤한다. */
+    public void reveal(long key) {
+        if (host == null) return;
+        int[] at = locate(key);
+        if (at == null) return;
+        int first = host.getFirstVisiblePosition();
+        int last = host.getLastVisiblePosition();
+        View firstChild = host.getChildAt(0);
+        View lastChild = host.getChildAt(host.getChildCount() - 1);
+        boolean fullyVisible = at[0] > first && at[0] < last
+                || at[0] == first && firstChild != null && firstChild.getTop() >= 0
+                || at[0] == last && lastChild != null && lastChild.getBottom() <= host.getHeight();
+        if (!fullyVisible) {
+            int rowH = firstChild != null ? firstChild.getHeight() : 0;
+            host.setSelectionFromTop(at[0], Math.max(0, (host.getHeight() - rowH) / 2));
+        }
+    }
+
+    /** 항목 칸의 화면 좌표. 화면에 없으면 null. */
+    public android.graphics.Rect cellRectOnScreen(long key) {
+        if (host == null || !host.isShown()) return null;
+        int[] at = locate(key);
+        if (at == null) return null;
+        View row = host.getChildAt(at[0] - host.getFirstVisiblePosition());
+        if (!(row instanceof ViewGroup)) return null;
+        View cell = ((ViewGroup) row).getChildAt(at[1]);
+        if (cell == null || cell.getVisibility() != View.VISIBLE) return null;
+        return Ui.screenRect(cell);
     }
 
     public void setBadger(Badger b) {
@@ -252,20 +350,13 @@ public class PhotoGridAdapter extends BaseAdapter {
                     @Override
                     public void onClick(View v) {
                         if (selectionMode) toggle(m);
-                        else listener.onItemClick(items, index);
+                        else listener.onItemClick(items, index, v);
                     }
                 });
                 iv.setOnLongClickListener(new View.OnLongClickListener() {
                     @Override
                     public boolean onLongClick(View v) {
-                        if (!selectionMode) {
-                            selectionMode = true;
-                            selected.add(m.key());
-                            notifyDataSetChanged();
-                            listener.onSelectionChanged(true, selected.size());
-                        } else {
-                            toggle(m);
-                        }
+                        beginDrag(index);
                         return true;
                     }
                 });

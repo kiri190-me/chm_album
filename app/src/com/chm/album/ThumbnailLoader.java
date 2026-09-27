@@ -38,6 +38,8 @@ public final class ThumbnailLoader {
     private final Context app;
     private final ContentResolver cr;
     private final LruCache<String, Bitmap> cache;
+    /** 항목마다 가장 최근에 캐시한 썸네일 키 (보기 화면이 목록의 썸네일을 바로 쓰도록) */
+    private final Map<Long, String> lastKey = Collections.synchronizedMap(new java.util.HashMap<Long, String>());
     private final Map<ImageView, String> targets =
             Collections.synchronizedMap(new WeakHashMap<ImageView, String>());
     private final Handler main = new Handler(Looper.getMainLooper());
@@ -78,7 +80,10 @@ public final class ThumbnailLoader {
                 Bitmap bm = cache.get(key);
                 if (bm == null) {
                     bm = decodeThumbnail(item, sizePx);
-                    if (bm != null) cache.put(key, bm);
+                    if (bm != null) {
+                        cache.put(key, bm);
+                        lastKey.put(item.key(), key);
+                    }
                 }
                 final Bitmap result = bm;
                 main.post(new Runnable() {
@@ -89,6 +94,12 @@ public final class ThumbnailLoader {
                 });
             }
         });
+    }
+
+    /** 크기와 상관없이 이미 캐시에 있는 이 항목의 썸네일. 없으면 null. */
+    public Bitmap getCached(MediaItem item) {
+        String k = lastKey.get(item.key());
+        return k == null ? null : cache.get(k);
     }
 
     /** 이 ImageView 에 대기 중인 썸네일이 나중에 덮어쓰지 않도록 한다. */

@@ -15,7 +15,7 @@ import android.widget.OverScroller;
 /**
  * 확대/축소가 되는 이미지 보기.
  * 두 손가락으로 벌려 확대, 두 번 탭해 확대/원래대로, 확대한 상태에서 끌어 이동.
- * 확대하지 않은 상태의 좌우/아래 밀기와 한 번 탭은 Listener 로 넘긴다.
+ * 확대하지 않은 상태의 좌우 밀기, 아래로 끌어 닫기, 한 번 탭은 Listener 로 넘긴다.
  */
 public class ZoomImageView extends ImageView {
 
@@ -25,7 +25,11 @@ public class ZoomImageView extends ImageView {
         /** @param direction 1 = 다음(왼쪽으로 밈), -1 = 이전 */
         void onSwipe(int direction);
 
-        void onSwipeDown();
+        /** 확대하지 않은 상태에서 아래로 끄는 중. 손가락을 따라 사진을 옮기고 줄인다. */
+        void onDismissDrag(float dx, float dy);
+
+        /** 끌기를 놓음. velocityY 는 px/s. */
+        void onDismissRelease(float dx, float dy, float velocityY);
     }
 
     private static final float MAX_ZOOM = 6f;
@@ -48,9 +52,18 @@ public class ZoomImageView extends ImageView {
     private ValueAnimator animator;
     private boolean scaling;
 
+    // 아래로 끌어 닫기
+    private final int touchSlop;
+    private boolean dismissDragging;
+    private boolean horizontalGesture;
+    private float rawDownX;
+    private float rawDownY;
+    private android.view.VelocityTracker velocity;
+
     public ZoomImageView(Context context) {
         super(context);
         density = context.getResources().getDisplayMetrics().density;
+        touchSlop = android.view.ViewConfiguration.get(context).getScaledTouchSlop();
         super.setScaleType(ScaleType.MATRIX);
         scroller = new OverScroller(context);
 
@@ -125,10 +138,6 @@ public class ZoomImageView extends ImageView {
                 float dy = e2.getY() - e1.getY();
                 if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 50 * density) {
                     listener.onSwipe(dx < 0 ? 1 : -1);
-                    return true;
-                }
-                if (dy > 120 * density && Math.abs(dy) > Math.abs(dx) * 2) {
-                    listener.onSwipeDown();
                     return true;
                 }
                 return false;
@@ -209,6 +218,11 @@ public class ZoomImageView extends ImageView {
         return fitScale <= 0 ? 1f : values[Matrix.MSCALE_X] / fitScale;
     }
 
+    /** 지금 화면에 그려진 사진 영역 (뷰 좌표, 뷰 자체의 이동/배율 적용 전). */
+    public RectF displayedRect() {
+        return new RectF(imageRect());
+    }
+
     private RectF imageRect() {
         rect.set(0, 0, drawableW, drawableH);
         matrix.mapRect(rect);
@@ -278,10 +292,67 @@ public class ZoomImageView extends ImageView {
 
     @Override
     public boolean onTouchEvent(MotionEvent event) {
-        scaleDetector.onTouchEvent(event);
-        gestureDetector.onTouchEvent(event);
         int action = event.getActionMasked();
-        if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL) scaling = false;
+        if (action == MotionEvent.ACTION_DOWN) {
+            rawDownX = event.getRawX();
+            rawDownY = event.getRawY();
+            dismissDragging = false;
+            horizontalGesture = false;
+            if (velocity != null) velocity.recycle();
+            velocity = android.view.VelocityTracker.obtain();
+        }
+        if (velocity != null) {
+            // 뷰가 끌려 움직이므로 화면 기준 좌표로 속도를 잰다
+            MotionEvent raw = MotionEvent.obtain(event);
+            raw.setLocation(event.getRawX(), event.getRawY());
+            velocity.addMovement(raw);
+            raw.recycle();
+        }
+
+        if (!dismissDragging && action == MotionEvent.ACTION_MOVE && event.getPointerCount() == 1
+                && !scaling && !isZoomed() && !horizontalGesture && listener != null) {
+            float dx = event.getRawX() - rawDownX;
+            float dy = event.getRawY() - rawDownY;
+            if (Math.abs(dx) > touchSlop && Math.abs(dx) > Math.abs(dy)) {
+                horizontalGesture = true;
+            } else if (dy > touchSlop && dy > Math.abs(dx) * 1.2f) {
+                dismissDragging = true;
+                stopMotion();
+                // 진행 중이던 탭/스크롤 인식을 멈춘다
+                MotionEvent cancel = MotionEvent.obtain(event);
+                cancel.setAction(MotionEvent.ACTION_CANCEL);
+                gestureDetector.onTouchEvent(cancel);
+                cancel.recycle();
+            }
+        }
+
+        if (dismissDragging) {
+            float dx = event.getRawX() - rawDownX;
+            float dy = event.getRawY() - rawDownY;
+            if (action == MotionEvent.ACTION_MOVE) {
+                listener.onDismissDrag(dx, dy);
+            } else if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL) {
+                float vy = 0;
+                if (velocity != null) {
+                    velocity.computeCurrentVelocity(1000);
+                    vy = velocity.getYVelocity();
+                }
+                dismissDragging = false;
+                listener.onDismissRelease(dx, dy, action == MotionEvent.ACTION_CANCEL ? 0 : vy);
+            }
+        } else {
+            scaleDetector.onTouchEvent(event);
+            gestureDetector.onTouchEvent(event);
+        }
+
+        if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL) {
+            scaling = false;
+            if (velocity != null) {
+                velocity.recycle();
+                velocity = null;
+            }
+        }
         return true;
     }
+
 }

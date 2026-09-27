@@ -131,6 +131,13 @@ public final class Ui {
         pw.showAsDropDown(anchor, -dp(c, 140), 0);
     }
 
+    /** 뷰의 화면(전체 창) 좌표 사각형. */
+    public static android.graphics.Rect screenRect(View v) {
+        int[] xy = new int[2];
+        v.getLocationOnScreen(xy);
+        return new android.graphics.Rect(xy[0], xy[1], xy[0] + v.getWidth(), xy[1] + v.getHeight());
+    }
+
     public static void lightNavigationBar(Activity a) {
         if (Build.VERSION.SDK_INT >= 26) {
             View d = a.getWindow().getDecorView();
