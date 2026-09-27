@@ -1,0 +1,63 @@
+name: APK 빌드 및 릴리스
+
+# 앱 코드가 바뀌어 푸시되면 APK 를 빌드하고 GitHub 릴리스에 올린다.
+# 릴리스 태그는 AndroidManifest.xml 의 versionName (예: v1.1) 을 따른다.
+# 같은 버전으로 다시 푸시하면 그 릴리스의 APK 를 새 파일로 교체한다.
+on:
+  push:
+    paths:
+      - "app/**"
+      - "build.sh"
+      - "keystore/**"
+      - "CHANGELOG.md"
+      - ".github/workflows/release.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Android 빌드 도구 설치
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq android-sdk-platform-23 android-sdk-build-tools apksigner zipalign dalvik-exchange
+
+      - name: APK 빌드
+        run: ./build.sh
+
+      - name: 버전 읽기
+        id: ver
+        run: |
+          VER=$(sed -n 's/.*android:versionName="\([^"]*\)".*/\1/p' app/AndroidManifest.xml | head -1)
+          echo "version=$VER" >> "$GITHUB_OUTPUT"
+          # CHANGELOG.md 에서 이 버전 부분만 릴리스 설명으로 쓴다
+          awk -v v="## v$VER" '$0==v{f=1;next} /^## /{f=0} f' CHANGELOG.md > notes.md
+          {
+            echo
+            echo "### 설치"
+            echo "아래 **chm-gallery.apk** 를 폰에서 눌러 받은 뒤 열어 설치하세요."
+            echo "(처음이면 '출처를 알 수 없는 앱 설치' 허용이 필요합니다.)"
+          } >> notes.md
+
+      - name: 릴리스에 APK 올리기
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VER: ${{ steps.ver.outputs.version }}
+        run: |
+          TAG="v$VER"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" dist/chm-gallery.apk --clobber
+            gh release edit "$TAG" --notes-file notes.md --latest
+          else
+            gh release create "$TAG" dist/chm-gallery.apk \
+              --target "$GITHUB_SHA" --title "갤러리 $TAG" --notes-file notes.md --latest
+          fi

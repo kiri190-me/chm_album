@@ -1,5 +1,24 @@
 # 갤러리 (chm_album)
 
+## 📥 다운로드
+
+<p align="center">
+  <a href="https://github.com/kiri190-me/chm_album/releases/latest/download/chm-gallery.apk">
+    <img src="https://img.shields.io/badge/APK%20%EB%8B%A4%EC%9A%B4%EB%A1%9C%EB%93%9C-chm--gallery.apk-E8264F?style=for-the-badge&logo=android&logoColor=white" alt="APK 다운로드">
+  </a>
+</p>
+
+<p align="center">
+  <img src="docs/download-qr.png" width="180" alt="APK 다운로드 QR 코드"><br>
+  <sub>폰 카메라로 QR 코드를 찍으면 바로 받을 수 있습니다</sub>
+</p>
+
+- 폰에서 위 버튼을 누르거나 QR 코드를 찍으면 최신 버전 APK 가 바로 내려받아집니다.
+- 받은 파일을 열어 설치합니다. 처음이면 **"출처를 알 수 없는 앱 설치"** 를 허용해야 합니다
+  (갤럭시: 설치 창에서 *설정* → 이 브라우저/내 파일 앱 *허용* → 뒤로 가서 *설치*).
+- 새 버전도 같은 방법으로 받아 설치하면 기존 앱 위에 업데이트됩니다.
+- 이전 버전과 변경 내역: [릴리스 목록](https://github.com/kiri190-me/chm_album/releases) · [CHANGELOG](CHANGELOG.md)
+
 갤럭시 기본 갤러리 느낌의 간단한 안드로이드 사진/동영상 앱입니다.
 
 - **사진 탭**: 모든 사진과 동영상을 날짜별(하루 단위)로 묶어서 보여줍니다. 동영상은 썸네일에 길이가 표시됩니다.
@@ -16,9 +35,6 @@
 - **동영상 자르기**: 시작/끝 손잡이로 구간을 골라 다시 인코딩 없이 잘라 저장 (키프레임 단위라 시작점이 조금 앞당겨질 수 있음)
 - 편집 결과는 원본을 그대로 두고 같은 폴더에 사본(`_edit`, `_trim`)으로 저장합니다. 사진 편집본에는 원래 촬영 날짜를 EXIF 에 기록해 '촬영 날짜' 정렬에서 원본 옆에 옵니다.
 
-## 설치
-
-`dist/chm-gallery.apk` 를 폰에 받아 설치합니다 (출처를 알 수 없는 앱 설치 허용 필요).
 Android 6.0 이상에서 동작합니다.
 
 ## 빌드
@@ -31,6 +47,12 @@ sudo apt-get install android-sdk-platform-23 android-sdk-build-tools apksigner z
 ```
 
 `keystore/debug.keystore`(비밀번호 `android`)로 서명합니다. 같은 키로 서명해야 기존 설치 위에 업데이트할 수 있습니다.
+
+### 자동 릴리스
+
+`app/` 등의 코드를 푸시하면 GitHub Actions(`.github/workflows/release.yml`)가 APK 를 빌드해
+`AndroidManifest.xml` 의 `versionName` 이름(예: `v1.1`)의 릴리스에 올립니다.
+새 버전을 내려면 `versionCode`/`versionName` 을 올리고 `CHANGELOG.md` 에 그 버전 항목을 추가한 뒤 푸시하면 됩니다.
 
 ## 구조
 
